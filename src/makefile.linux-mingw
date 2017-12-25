@@ -5,14 +5,14 @@
 #TARGET_PLATFORM:=i686
 #TARGET_PLATFORM:=x86_64
 
-DEPSDIR:=/mnt/mxe/usr/$(TARGET_PLATFORM)-w64-mingw32.static
+DEPSDIR:=/mnt/mxe/usr/$(TARGET_PLATFORM)-w64-mingw32.static.posix
 INCDIR:=$(DEPSDIR)/include
 LIBDIR:=$(DEPSDIR)/lib
-AR:=$(TARGET_PLATFORM)-w64-mingw32.static-ar
-CC:=$(TARGET_PLATFORM)-w64-mingw32.static-gcc
-CXX:=$(TARGET_PLATFORM)-w64-mingw32.static-g++
-RANLIB=$(TARGET_PLATFORM)-w64-mingw32.static-ranlib
-STRIP=$(TARGET_PLATFORM)-w64-mingw32.static-strip
+AR:=$(TARGET_PLATFORM)-w64-mingw32.static.posix-ar
+CC:=$(TARGET_PLATFORM)-w64-mingw32.static.posix-gcc
+CXX:=$(TARGET_PLATFORM)-w64-mingw32.static.posix-g++
+RANLIB=$(TARGET_PLATFORM)-w64-mingw32.static.posix-ranlib
+STRIP=$(TARGET_PLATFORM)-w64-mingw32.static.posix-strip
 
 
 INCLUDEPATHS= \
