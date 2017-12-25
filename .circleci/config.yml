@@ -21,7 +21,7 @@ jobs:
                   apt-get update && apt-get install \
                   --no-install-recommends \
                   -y \
-                  wget ca-certificates p7zip-full autoconf automake autopoint bash bzip2 cmake gettext git g++ libffi-dev gperf intltool libtool libxml-parser-perl make openssl patch perl pkg-config python ruby flex bison scons sed unzip libgtk2.0-dev
+                  wget ca-certificates p7zip-full autoconf automake autopoint bash bzip2 cmake gettext git g++ libffi-dev gperf intltool libtool libtool-bin libxml-parser-perl make openssl patch perl pkg-config python ruby flex bison scons sed unzip libgtk2.0-dev
       - run:
           name: Build Base MXE Environment
           command: |
@@ -29,7 +29,32 @@ jobs:
                  cd /opt 
                  git clone https://github.com/mxe/mxe.git 
                  cd $MXE_PATH
-                 make MXE_TARGETS="x86_64-w64-mingw32.static" boost 
+                 make MXE_TARGETS="x86_64-w64-mingw32.static.posix" gcc
+      - run:
+          name: Build BOOST
+          command: |
+                 export PATH=$MXE_PATH/usr/bin:$PATH
+                 cd src
+                 wget https://sourceforge.net/projects/boost/files/boost/1.57.0/boost_1_57_0.tar.gz
+                 echo 'fea9c7472f7a52cec2a1640958145b2144bf17903a21db65b95efb6ae5817fa5  boost_1_57_0.tar.gz' | sha256sum -c
+                 tar xvzf boost_1_57_0.tar.gz
+                 cd boost_1_57_0
+                 echo "using gcc : : x86_64-w64-mingw32.static.posix-g++ : <cxxflags>\"-std=c++11 -fvisibility=hidden     -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include    \"  <linkflags>\"-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib    \" <archiver>\"x86_64-w64-mingw32.static.posix-ar\" <striper>\"x86_64-w64-mingw32.static.posix-strip\"  <ranlib>\"x86_64-w64-mingw32.static.posix-ranlib\" <rc>\"\" : ;" > user-config.jam
+                 ./bootstrap.sh --without-icu --with-libraries=chrono,filesystem,program_options,system,thread,test
+                 ./b2 -d2 -j2 -d1 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix variant=release --layout=tagged --build-type=complete --user-config=user-config.jam threading=multi link=static -sNO_BZIP2=1 -sNO_ZLIB=1 binary-format=pe target-os=windows threadapi=win32 runtime-link=static address-model=64 stage
+                 ./b2 -d0 -j4 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix variant=release --layout=tagged --build-type=complete --user-config=user-config.jam threading=multi link=static -sNO_BZIP2=1 -sNO_ZLIB=1 binary-format=pe target-os=windows threadapi=win32 runtime-link=static address-model=64 install
+      - run:
+          name: Build ZLib
+          command: |
+                 export PATH=$MXE_PATH/usr/bin:$PATH
+                 cd src
+                 wget http://www.zlib.net/zlib-1.2.11.tar.gz
+                 echo 'c3e5e9fdd5004dcb542feda5ee4f0ff0744628baf8ed2dd5d66f8ca1197cb1a1 zlib-1.2.11.tar.gz' | sha256sum -c
+                 tar xvzf zlib-1.2.11.tar.gz
+                 cd zlib-1.2.11
+                 ./configure --static --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix 
+                 make CC=x86_64-w64-mingw32.static.posix-gcc AR=x86_64-w64-mingw32.static.posix-ar CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" libz.a
+                 make install CC=x86_64-w64-mingw32.static.posix-gcc AR=x86_64-w64-mingw32.static.posix-ar CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" 
       - run:
           name: Build LibPNG
           command: |
@@ -39,7 +64,7 @@ jobs:
                  echo '02f96b6bad5a381d36d7ba7a5d9be3b06f7fe6c274da00707509c23592a073ad  libpng-1.6.16.tar.gz' | sha256sum -c
                  tar xzvf libpng-1.6.16.tar.gz
                  cd libpng-1.6.16
-                 CC=x86_64-w64-mingw32.static-gcc AR=x86_64-w64-mingw32.static-ar CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static/include" LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" ./configure --host=x86_64-w64-mingw32 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static --disable-shared
+                 CC=x86_64-w64-mingw32.static.posix-gcc AR=x86_64-w64-mingw32.static.posix-ar CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" ./configure --host=x86_64-w64-mingw32 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix --disable-shared
                  make && make install 
       - run:
           name: Build QREncode
@@ -50,13 +75,13 @@ jobs:
                  echo 'e794e26a96019013c0e3665cb06b18992668f352c5553d0a553f5d144f7f2a72 qrencode-3.4.4.tar.gz' | sha256sum -c
                  tar xzvf qrencode-3.4.4.tar.gz
                  cd qrencode-3.4.4
-                 CC=x86_64-w64-mingw32.static-gcc \
-                 AR=x86_64-w64-mingw32.static-ar \
-                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static/include" \
-                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" \
-                 png_CFLAGS="-I$MXE_PATH/usr/x86_64-w64-mingw32.static/include" \
-                 png_LIBS="-I$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" \
-                 ./configure --host=x86_64-w64-mingw32 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static --disable-shared --enable-static --without-tools
+                 CC=x86_64-w64-mingw32.static.posix-gcc \
+                 AR=x86_64-w64-mingw32.static.posix-ar \
+                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" \
+                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" \
+                 png_CFLAGS="-I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" \
+                 png_LIBS="-I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" \
+                 ./configure --host=x86_64-w64-mingw32 --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix --disable-shared --enable-static --without-tools
                  make -j4 install
       - run:
           name: Build MiniUPNPC
@@ -67,14 +92,14 @@ jobs:
                  echo '2923e453e880bb949e3d4da9f83dd3cb6f08946d35de0b864d0339cf70934464 miniupnpc-1.9.tar.gz' | sha256sum -c
                  tar xzvf miniupnpc-1.9.tar.gz
                  cd miniupnpc-1.9
-                 CC=x86_64-w64-mingw32.static-gcc \
-                 AR=x86_64-w64-mingw32.static-ar \
-                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static/include" \
-                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" \
+                 CC=x86_64-w64-mingw32.static.posix-gcc \
+                 AR=x86_64-w64-mingw32.static.posix-ar \
+                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" \
+                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" \
                  make libminiupnpc.a
-                 mkdir $MXE_PATH/usr/x86_64-w64-mingw32.static/include/miniupnpc
-                 cp *.h $MXE_PATH/usr/x86_64-w64-mingw32.static/include/miniupnpc
-                 cp libminiupnpc.a $MXE_PATH/usr/x86_64-w64-mingw32.static/lib
+                 mkdir $MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include/miniupnpc
+                 cp *.h $MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include/miniupnpc
+                 cp libminiupnpc.a $MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib
       - run:
           name: Build BDB4.8
           command: |
@@ -84,8 +109,8 @@ jobs:
                  echo '12edc0df75bf9abd7f82f821795bcee50f42cb2e5f76a6a281b85732798364ef db-4.8.30.NC.tar.gz' | sha256sum -c
                  tar -xzvf db-4.8.30.NC.tar.gz
                  cd db-4.8.30.NC/build_unix/
-                 CC=$MXE_PATH/usr/bin/x86_64-w64-mingw32.static-gcc CXX=$MXE_PATH/usr/bin/x86_64-w64-mingw32.static-g++ ../dist/configure --host=x86_64-w64-mingw32 --enable-cxx \
-                 --enable-mingw --disable-replication --disable-shared --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static 
+                 CC=$MXE_PATH/usr/bin/x86_64-w64-mingw32.static.posix-gcc CXX=$MXE_PATH/usr/bin/x86_64-w64-mingw32.static.posix-g++ ../dist/configure --host=x86_64-w64-mingw32 --enable-cxx \
+                 --enable-mingw --disable-replication --disable-shared --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix 
                  make -j4
                  make install
       - run:
@@ -97,9 +122,9 @@ jobs:
                  echo '370babb75f278c39e0c50e8c4e7493bc0f18db6867478341a832a982fd15a8fe openssl-1.0.2n.tar.gz' | sha256sum -c
                  tar xvfz openssl-1.0.2n.tar.gz
                  cd openssl-1.0.2n
-                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static/include" \
-                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static/lib" \
-                 ./Configure --cross-compile-prefix=x86_64-w64-mingw32.static- --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static no-zlib no-shared no-dso no-krb5 no-camellia no-capieng no-cast no-cms no-dtls1 no-gost no-gmp no-heartbeats no-idea no-jpake no-md2 no-mdc2 no-rc5 no-rdrand no-rfc3779 no-rsax no-sctp no-seed no-sha0 no-static_engine no-whirlpool no-rc2 no-rc4 no-ssl2 no-ssl3 mingw64 && \
+                 CFLAGS="-DSTATICLIB -I$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/include" \
+                 LDFLAGS="-L$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/lib" \
+                 ./Configure --cross-compile-prefix=x86_64-w64-mingw32.static.posix- --prefix=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix no-zlib no-shared no-dso no-krb5 no-camellia no-capieng no-cast no-cms no-dtls1 no-gost no-gmp no-heartbeats no-idea no-jpake no-md2 no-mdc2 no-rc5 no-rdrand no-rfc3779 no-rsax no-sctp no-seed no-sha0 no-static_engine no-whirlpool no-rc2 no-rc4 no-ssl2 no-ssl3 mingw64 && \
                  make depend
                  make -j4
                  make install
@@ -108,14 +133,14 @@ jobs:
           command: |          
                  export PATH=$MXE_PATH/usr/bin:$PATH          
                  cd src 
-                 make -f makefile.linux-mingw DEPSDIR=$MXE_PATH/usr/x86_64-w64-mingw32.static TARGET_PLATFORM=x86_64
+                 make -f makefile.linux-mingw DEPSDIR=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix TARGET_PLATFORM=x86_64
                  strip pink2d.exe
 #      - run:
 #         name: Build Pinkcoin-Qt
 #          command: |
-#                 MXE_INCLUDE_PATH /opt/mxe/usr/x86_64-w64-mingw32.static/include
-#                 MXE_LIB_PATH /opt/mxe/usr/x86_64-w64-mingw32.static/lib
-#                 x86_64-w64-mingw32.static-qmake-qt5 pinkcoin-qt.pro \
+#                 MXE_INCLUDE_PATH /opt/mxe/usr/x86_64-w64-mingw32.static.posix/include
+#                 MXE_LIB_PATH /opt/mxe/usr/x86_64-w64-mingw32.static.posix/lib
+#                 x86_64-w64-mingw32.static.posix-qmake-qt5 pinkcoin-qt.pro \
 #                 USE_UPNP=1 \
 #                 CONFIG+=c++11 \
 #                 USE_QRCODE=1 \
@@ -133,7 +158,7 @@ jobs:
 #                 BDB_LIB_PATH=$MXE_LIB_PATH \
 #                 MINIUPNPC_INCLUDE_PATH=$MXE_INCLUDE_PATH \
 #                 MINIUPNPC_LIB_PATH=$MXE_LIB_PATH \
-#                 QMAKE_LRELEASE=$MXE_PATH/usr/x86_64-w64-mingw32.static/qt5/bin/lrelease
+#                 QMAKE_LRELEASE=$MXE_PATH/usr/x86_64-w64-mingw32.static.posix/qt5/bin/lrelease
 #                 make -f Makefile.Release
       - run:
           name: Set Artifact name as env
