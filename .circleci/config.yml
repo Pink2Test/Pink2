@@ -18,7 +18,7 @@ jobs:
                   apt-get update && apt-get install \
                   --no-install-recommends \
                   -y \
-                  wget ca-certificates p7zip-full autoconf automake bash bzip2 cmake gettext git libtool libtool-bin make g++-mingw-w64-x86-64
+                  wget ca-certificates p7zip-full autoconf automake bash bzip2 cmake gettext git libtool make g++-mingw-w64-x86-64
       - run:
           name: Build BOOST
           command: |
