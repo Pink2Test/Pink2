@@ -1,10 +1,10 @@
--w---
+---
 version: 2
 jobs:
   build:
     working_directory: /Pink2
     docker:
-      - image: ubuntu:xenial
+      - image: ubuntu:trusty
         environment:
           FROM_BUILD: "JRedinger"
     steps:
