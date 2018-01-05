@@ -17,7 +17,7 @@ jobs:
                   apt-get update && apt-get install \
                   --no-install-recommends \
                   -y \
-                  wget g++ ca-certificates p7zip-full autoconf automake bash bzip2 cmake gettext git libtool make g++-mingw-w64-x86-64
+                  wget g++ ca-certificates pkg-config p7zip-full autoconf automake bash bzip2 cmake gettext git libtool make g++-mingw-w64-x86-64
       - run:
           name: Build BOOST
           command: |
@@ -140,11 +140,11 @@ jobs:
                  cd translations && ../../qtbase-opensource-src-5.7.1/bin/qmake translations.pro -o Makefile && cd ../.. &&\
                  cd qttools-opensource-src-5.7.1/src/linguist/lrelease/ && ../../../../qtbase-opensource-src-5.7.1/bin/qmake lrelease.pro -o Makefile
                  cd ../../../../qtbase-opensource-src-5.7.1/
-                 make -C src sub-corelib sub-network sub-widgets sub-gui sub-plugins sub-testlib 
+                 make -C src sub-corelib sub-network sub-widgets sub-gui sub-winmain sub-plugins sub-testlib 
                  make -C ../qttools-opensource-src-5.7.1/src/linguist/lrelease 
                  make -C ../qttools-opensource-src-5.7.1/src/linguist/lrelease install_target
                  make -C ../qttranslations-opensource-src-5.7.1
-                 make -C src sub-corelib-install_subtargets sub-network-install_subtargets sub-widgets-install_subtargets sub-gui-install_subtargets sub-plugins-install_subtargets sub-testlib-install_subtargets
+                 make -C src sub-corelib-install_subtargets sub-network-install_subtargets sub-winmain-install_subtargets sub-widgets-install_subtargets sub-gui-install_subtargets sub-plugins-install_subtargets sub-testlib-install_subtargets
                  make -C ../qttranslations-opensource-src-5.7.1 install_subtargets
                  cp bin/qmake /usr/x86_64-w64-mingw32/bin && cp -rf mkspecs /usr/x86_64-w64-mingw32/
       - run:
