@@ -187,9 +187,10 @@ jobs:
           name: Tar artifacts
           command: |
                   mkdir /tmp/build/
-                  cp src/pink2d.exe /tmp/build
-                  cp Pinkcoin-Qt.exe /tmp/build
                   tar cvfz /tmp/build/$BUILD_NAME.tar.gz .
+                  tar cvfz /tmp/build/x86_64-w64-mingw32_toolkit.tar.gz /usr/x86_64-w64-mingw32
+                  cp src/pink2d.exe /tmp/build
+                  cp release/Pinkcoin-Qt.exe /tmp/build
       - store_artifacts:
           path: /tmp/build/
           destination: windows
