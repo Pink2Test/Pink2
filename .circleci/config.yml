@@ -154,8 +154,8 @@ jobs:
                  make -f makefile.linux-mingw DEPSDIR=/usr/x86_64-w64-mingw32 TARGET_PLATFORM=x86_64
                  strip pink2d.exe
       - run:
-         name: Build Pinkcoin-Qt
-          command: |
+          name: Build Pink2d Daemon
+          command: |  
                  /usr/x86_64-w64-mingw32/bin/qmake pinkcoin-qt.pro \
                  DEPS_INCLUDE_PATH=/usr/x86_64-w64-mingw32/include \
                  DEPS_LIB_PATH=/usr/x86_64-w64-mingw32/lib \
