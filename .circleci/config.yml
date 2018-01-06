@@ -17,7 +17,7 @@ jobs:
                   apt-get update && apt-get install \
                   --no-install-recommends \
                   -y \
-                  wget g++ ca-certificates pkg-config p7zip-full autoconf automake bash bzip2 cmake gettext git libtool make g++-mingw-w64-x86-64
+                  wget g++ zip ca-certificates pkg-config p7zip-full autoconf automake bash bzip2 cmake gettext git libtool make g++-mingw-w64-x86-64
       - run:
           name: Build BOOST
           command: |
@@ -191,6 +191,8 @@ jobs:
                   tar cvfz /tmp/build/x86_64-w64-mingw32_toolkit.tar.gz /usr/x86_64-w64-mingw32
                   cp src/pink2d.exe /tmp/build
                   cp release/Pinkcoin-Qt.exe /tmp/build
+                  cd /tmp/build
+                  zip Pinkcoin-Qt.zip Pinkcoin-Qt.exe
       - store_artifacts:
           path: /tmp/build/
           destination: windows
