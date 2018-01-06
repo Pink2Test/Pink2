@@ -153,7 +153,7 @@ jobs:
                  cd / 
                  wget https://43-114939775-gh.circle-artifacts.com/0/windows/x86_64-w64-mingw32_toolkit.tar.gz
                  echo '5056e708fe942177d4fe1d41d8e598efbdb1ddd8957c57e2a01a09ef914c97a5  x86_64-w64-mingw32_toolkit.tar.gz' | sha256sum -c
-                 tar xvzf https://43-114939775-gh.circle-artifacts.com/0/windows/x86_64-w64-mingw32_toolkit.tar.gz
+                 tar xvzf x86_64-w64-mingw32_toolkit.tar.gz
       - run:
           name: Build Pink2d Daemon
           command: |                 
