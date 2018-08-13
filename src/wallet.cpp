@@ -2616,7 +2616,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 				if (txNew.GetCoinAge(txdb, nCoinAge))
 				{
                     uint64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, pindexBest->nHeight + 1, txNew.nTime);
-                    if (nTotalSize / 2 > nSplitThreshold * COIN)
+                    if (nTotalSize > nSplitThreshold * COIN)
 						txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 				}
 

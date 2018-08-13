@@ -48,10 +48,10 @@ unsigned int nStakeMinAge       = 1 * 60 * 60;       // 1 hour
 unsigned int nStakeMaxAge       = 24 * 60 * 60 * 30; // 30 days
 unsigned int nModifierInterval  = 5 * 60;            // time to elapse before new modifier is computed
 
-const unsigned int nHour1 = 15;  // 7am PST
-const unsigned int nHour2 = 20;  // 12pm PST
-const unsigned int nHour3 = 1; // 5pm PST
-const unsigned int nHour4 = 6; // 10pm PST
+const unsigned int nHour1 = 15;  // 7am UTC-8
+const unsigned int nHour2 = 20;  // 12pm UTC-8
+const unsigned int nHour3 = 1; // 5pm UTC-8
+const unsigned int nHour4 = 6; // 10pm UTC-8
 
 int nCoinbaseMaturity = 20;
 CBlockIndex* pindexGenesisBlock = NULL;
@@ -1963,7 +1963,7 @@ bool CBlock::SetBestChain(CTxDB& txdb, CBlockIndex* pindexNew)
         }
         if (nUpgraded > 0)
             printf("SetBestChain: %d of last 100 blocks above version %d\n", nUpgraded, CBlock::CURRENT_VERSION);
-        if (nUpgraded > 100/2)
+        if (nUpgraded > 100/2 && !fTestNet)
             // strMiscWarning is read by GetWarnings(), called by Qt and the JSON-RPC code to warn the user:
             strMiscWarning = _("Warning: This version is obsolete, upgrade required!");
     }
@@ -2155,7 +2155,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
             return DoS(100, error("CheckBlock() : more than one coinbase"));
 
     // Check coinbase timestamp
-    if (futureLimit > FutureDrift((int64_t)vtx[0].nTime))
+    if (futureLimit > FutureDrift((int64_t)vtx[0].nTime) && !fTestNet)
     {
         printf("\nBlockTime: %lli, FutureDrift: %lli\n", GetBlockTime(), FutureDrift((int64_t)vtx[0].nTime));
         return DoS(50, error("CheckBlock() : coinbase timestamp is too early"));
@@ -2224,8 +2224,11 @@ bool CBlock::AcceptBlock()
 {
     AssertLockHeld(cs_main);
 
-    if (nVersion > CURRENT_VERSION)
-        return DoS(100, error("AcceptBlock() : reject unknown block version %d", nVersion));
+    if (!fTestNet)
+    {
+        if (nVersion > CURRENT_VERSION)
+            return DoS(100, error("AcceptBlock() : reject unknown block version %d", nVersion));
+    }
 
     // Check for duplicate
     uint256 hash = GetHash();
