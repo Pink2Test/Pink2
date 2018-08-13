@@ -566,7 +566,7 @@ void StakeMiner(CWallet *pwallet)
              * then we can safely assume that we are on a sane chain.
              */
 
-            if (vNodes.size() < (int)MIN_PEERS || nBestHeight < GetNumBlocksOfPeers())
+            if ((vNodes.size() < (int)MIN_PEERS && !fTestNet) || nBestHeight < GetNumBlocksOfPeers())
             {
                 MilliSleep(60000);
                 continue;
