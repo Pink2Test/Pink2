@@ -81,6 +81,8 @@ const string strMessageMagic = "Pinkcoin Signed Message:\n";
 // Settings
 int64_t nTransactionFee = MIN_TX_FEE;
 int64_t nReserveBalance = 0;
+int64_t nCombineThreshold = 1000;
+int64_t nSplitThreshold = 2000;
 int64_t nMinimumInputValue = 0;
 int64_t nMinimumStakeValue = 0; // Don't stake old 0 reward blocks.
 

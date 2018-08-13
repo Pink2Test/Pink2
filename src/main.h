@@ -80,6 +80,8 @@ extern std::map<uint256, CBlock*> mapOrphanBlocks;
 // Settings
 extern int64_t nTransactionFee;
 extern int64_t nReserveBalance;
+extern int64_t nCombineThreshold;
+extern int64_t nSplitThreshold;
 extern int64_t nMinimumInputValue;
 extern int64_t nMinimumStakeValue;
 extern bool fUseFastIndex;
