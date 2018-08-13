@@ -44,8 +44,10 @@ void OptionsModel::Init()
     fMinimizeOnClose = settings.value("fMinimizeOnClose", false).toBool();
     fCoinControlFeatures = settings.value("fCoinControlFeatures", false).toBool();
     fNotificationLevel = settings.value("fNotificationLevel", "Notify on All").toString();
+    fTargetFPOS = settings.value("fTargetFPOS", false).toBool();
     nTransactionFee = settings.value("nTransactionFee").toLongLong();
     nReserveBalance = settings.value("nReserveBalance").toLongLong();
+
     language = settings.value("language", "").toString();
 
     // These are shared with core Bitcoin; we want
@@ -60,6 +62,36 @@ void OptionsModel::Init()
         SoftSetBoolArg("-detachdb", settings.value("detachDB").toBool());
     if (!language.isEmpty())
         SoftSetArg("-lang", language.toStdString());
+
+    // Combine/Split command line/config file options set UI options.
+    // 1000/2000 are defaults that would be changed if these values were set elsewhere.
+    // Override command line options if targetFPOS toggle is set (sets 100k/200k)
+
+    int64_t valSplitThreshold = settings.value("nSplitThreshold").toLongLong();
+    int64_t valCombineThreshold = settings.value("nCombineThreshold").toLongLong();
+
+    if (valCombineThreshold == 0 || valSplitThreshold == 0)
+    {
+        nSplitThreshold = valSplitThreshold = 2000;
+        nCombineThreshold = valCombineThreshold = 1000;
+    } else {
+
+        if (nSplitThreshold == 2000 || valSplitThreshold == 200000)
+        {
+            nSplitThreshold = valSplitThreshold;
+        } else {
+            settings.setValue("nSplitThreshold", (qint64) nSplitThreshold);  // it's already been set, so lets update our settings.
+        }
+
+        if (nCombineThreshold == 1000 || valCombineThreshold == 100000)
+        {
+            nCombineThreshold = valCombineThreshold;
+        } else {
+            settings.setValue("nCombineThreshold", (qint64) nCombineThreshold); // it's already been set, so lets update our settings.
+
+        }
+    }
+
 }
 
 int OptionsModel::rowCount(const QModelIndex & parent) const
@@ -114,6 +146,12 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
             return QVariant(fCoinControlFeatures);
         case NotificationLevel:
             return settings.value("fNotificationLevel", "Notify on All");
+        case TargetFPOS:
+            return QVariant(fTargetFPOS);
+        case CombineThreshold:
+            return QVariant((qint64) nCombineThreshold);
+        case SplitThreshold:
+            return QVariant((qint64) nSplitThreshold);
         default:
             return QVariant();
         }
@@ -216,6 +254,39 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             emit notificationLevelChanged(fNotificationLevel);
             }
             break;
+        case TargetFPOS: {
+            fTargetFPOS = value.toBool();
+            settings.setValue("fTargetFPOS", fTargetFPOS);
+            emit targetFPOSChanged(fTargetFPOS);
+            }
+            break;
+        case SplitThreshold:
+            if (value.toLongLong() < nCombineThreshold * 2 && nCombineThreshold != 100000)
+            {
+                successful=false;
+                break;
+            }
+
+            nSplitThreshold = value.toLongLong();
+            if (nSplitThreshold < 200)
+                nSplitThreshold = 200;
+
+            settings.setValue("nSplitThreshold", (qint64) nSplitThreshold);
+            emit splitThresholdChanged(nSplitThreshold);
+
+            if (nSplitThreshold < nCombineThreshold)
+                nCombineThreshold = nSplitThreshold / 2;
+            break;
+        case CombineThreshold:
+            if (value.toLongLong() > nSplitThreshold / 2 || value.toLongLong() < 100)
+            {
+                successful=false;
+                break;
+            }
+            nCombineThreshold = value.toLongLong();
+            settings.setValue("nCombineThreshold", (qint64) nCombineThreshold);
+            emit combineThresholdChanged(nCombineThreshold);
+            break;
         default:
             break;
         }
@@ -238,6 +309,21 @@ qint64 OptionsModel::getReserveBalance()
 bool OptionsModel::getCoinControlFeatures()
 {
     return fCoinControlFeatures;
+}
+
+bool OptionsModel::getTargetFPOS()
+{
+    return fTargetFPOS;
+}
+
+qint64 OptionsModel::getCombineThreshold()
+{
+    return nCombineThreshold;
+}
+
+qint64 OptionsModel::getSplitThreshold()
+{
+    return nSplitThreshold;
 }
 
 bool OptionsModel::getMinimizeToTray()

@@ -93,6 +93,8 @@ OptionsDialog::OptionsDialog(QWidget *parent) :
     connect(mapper, SIGNAL(currentIndexChanged(int)), this, SLOT(disableApplyButton()));
     /* setup/change UI elements when proxy IP is invalid/valid */
     connect(this, SIGNAL(proxyIpValid(QValidatedLineEdit *, bool)), this, SLOT(handleProxyIpValid(QValidatedLineEdit *, bool)));
+
+    connect(ui->targetFPOS, SIGNAL(toggled(bool)), this, SLOT(toggleFPOS()));
 }
 
 OptionsDialog::~OptionsDialog()
@@ -148,8 +150,13 @@ void OptionsDialog::setMapper()
     /* Display */
     mapper->addMapping(ui->lang, OptionsModel::Language);
     mapper->addMapping(ui->unit, OptionsModel::DisplayUnit);
-    mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
     mapper->addMapping(ui->comboNotificationLevel, OptionsModel::NotificationLevel);
+
+    /* Stakes */
+    mapper->addMapping(ui->splitThreshold, OptionsModel::SplitThreshold);
+    mapper->addMapping(ui->combineThreshold, OptionsModel::CombineThreshold);
+    mapper->addMapping(ui->targetFPOS, OptionsModel::TargetFPOS);
+    mapper->addMapping(ui->coinControlFeatures, OptionsModel::CoinControlFeatures);
 }
 
 void OptionsDialog::enableApplyButton()
@@ -160,6 +167,23 @@ void OptionsDialog::enableApplyButton()
 void OptionsDialog::disableApplyButton()
 {
     ui->applyButton->setEnabled(false);
+}
+
+void OptionsDialog::toggleFPOS()
+{
+    if (ui->targetFPOS->isChecked())
+    {
+        ui->splitThreshold->setText("200000");
+        ui->splitThreshold->setEnabled(false);
+        ui->combineThreshold->setText("100000");
+        ui->combineThreshold->setEnabled(false);
+    } else {
+        ui->combineThreshold->setText("1000");  // must reverse order or validator will reject splitthreshold for being < combine threshold.
+        ui->combineThreshold->setEnabled(true);
+        ui->splitThreshold->setText("2000");
+        ui->splitThreshold->setEnabled(true);
+    }
+
 }
 
 void OptionsDialog::enableSaveButtons()

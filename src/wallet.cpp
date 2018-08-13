@@ -18,7 +18,7 @@
 using namespace std;
 
 //unsigned int nStakeSplitAge = 1 * 1 * 60 * 60;
-int64_t nStakeCombineThreshold = 1000 * COIN;
+// int64_t nStakeCombineThreshold = 1000 * COIN; Depreciated.
 
 // CBitcoinAddress addrD4L("2LSrmzJMBSEcBMG7WMNxcdzVMH6tXXQH9M");
 
@@ -2616,7 +2616,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 				if (txNew.GetCoinAge(txdb, nCoinAge))
 				{
                     uint64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, pindexBest->nHeight + 1, txNew.nTime);
-					if (nTotalSize / 2 > nStakeSplitThreshold * COIN)
+                    if (nTotalSize / 2 > nSplitThreshold * COIN)
 						txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 				}
 
@@ -2648,13 +2648,13 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             if (txNew.vin.size() >= 100)
                 break;
             // Stop adding more inputs if value is already pretty significant
-            if (nCredit >= nStakeCombineThreshold)
+            if (nCredit >= (nCombineThreshold * COIN))
                 break;
             // Stop adding inputs if reached reserve limit
             if (nCredit + pcoin.first->vout[pcoin.second].nValue > nBalance - nReserveBalance)
                 break;
             // Do not add additional significant input
-            if (pcoin.first->vout[pcoin.second].nValue >= nStakeCombineThreshold)
+            if (pcoin.first->vout[pcoin.second].nValue >= (nCombineThreshold * COIN))
                 continue;
             // Do not add input that is still too young
             unsigned int nStakeMinAgeCurrent = nStakeMinAge;
@@ -2738,10 +2738,8 @@ int64_t CWallet::AggregateStakeOut(CTransaction &txNew, int64_t &nReward)
                 stakeOut.SetDestination(stakeOutAddress.Get());
 
                 txNew.vout.push_back(CTxOut(nRewardPC, stakeOut));
-                printf("\nStakeout Coins: %d to Address: %s", nRewardPC, stakeOutAddress.ToString().c_str());
             } else {
-                printf("\nAttempt to stakeout over 100%%");
-                percentTotal -= nPercent;
+                percentTotal -= nPercent; // Attempted to stakeout over 100%
             }
         }
     }

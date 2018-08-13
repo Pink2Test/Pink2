@@ -1737,6 +1737,64 @@ Value reservebalance(const Array& params, bool fHelp)
 }
 
 
+// Set the minimum coin chunk size.
+// Stakes of coins smaller than this will be combined with other chunks in the wallet.
+Value combinethreshold(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "combinethreshold [amount]\n"
+            "<amount> is a real and a whole number.\n"
+            "Set minimum coin chunk amount before combining stakes.\n"
+            "If no parameters provided current setting is printed.\n");
+
+    if (params.size() > 0)
+    {
+       if (params.size() == 1)
+        {
+           int64_t nAmount = params[0].get_int64();
+           if (nAmount < 100)
+               throw runtime_error("Cannot set combine threshold lower than 100 coins.\n");
+           if (nAmount > nSplitThreshold / 2)
+               throw runtime_error("Combine threshold must be half the combined threshold or less.\n");
+           nCombineThreshold = nAmount;
+        }
+    }
+
+    Object result;
+    result.push_back(Pair("combine threshold", nCombineThreshold));
+    return result;
+}
+
+// Set the maximum coin chunk size.
+// Stakes of coins larger than this will be split evenly into two chunks in the wallet.
+Value splitthreshold(const Array& params, bool fHelp)
+{
+    if (fHelp || params.size() > 1)
+        throw runtime_error(
+            "combinethreshold [amount]\n"
+            "<amount> is a real and a whole number.\n"
+            "Set maximum coin chunk amount before splitting stakes.\n"
+            "If no parameters provided current setting is printed.\n");
+
+    if (params.size() > 0)
+    {
+       if (params.size() == 1)
+        {
+           int64_t nAmount = params[0].get_int64();
+           if (nAmount > 1000000)
+               throw runtime_error("Cannot set combine threshold higher than 1000000 coins.\n");
+           if (nAmount < nCombineThreshold * 2)
+               throw runtime_error("Split threshold must be at least double the combined threshold.\n");
+           nSplitThreshold = nAmount;
+        }
+    }
+
+    Object result;
+    result.push_back(Pair("split threshold", nSplitThreshold));
+    return result;
+}
+
 // ppcoin: check wallet integrity
 Value checkwallet(const Array& params, bool fHelp)
 {
@@ -2321,11 +2379,30 @@ Value getwalletinfo(const Array& params, bool fHelp)
 // presstab HyperStake
 Value setstakesplitthreshold(const Array& params, bool fHelp)
 {
+
     if (fHelp || params.size() != 1)
         throw runtime_error(
-            "setstakesplitthreshold <1 - 999,999>\n"
-            "This will set the output size of your stakes to never be below this number\n");
-    
+            "setstakesplitthreshold <1 - 1000000>\n"
+            "This will set the output size of your stakes to never be below this number\n"
+            "Note: This function is depreciated in favor of splitthreshold [amount]\n");
+
+    if (params.size() > 0)
+    {
+       if (params.size() == 1)
+        {
+           int64_t nAmount = AmountFromValue(params[0]);
+           if (nAmount > 1000000)
+               throw runtime_error("Cannot set combine threshold higher than 1000000 coins.\n");
+           if (nAmount < nCombineThreshold * 2)
+               throw runtime_error("Split threshold must be at least double the combined threshold.\n");
+           nSplitThreshold = nAmount;
+        }
+    }
+
+    Object result;
+    result.push_back(Pair("split threshold", ValueFromAmount(nSplitThreshold)));
+    return result;
+/*
 	uint64_t nStakeSplitThreshold = boost::lexical_cast<int>(params[0].get_str());
 	if (pwalletMain->IsLocked())
         throw JSONRPCError(RPC_WALLET_UNLOCK_NEEDED, "Error: Unlock wallet to use this feature");
@@ -2350,6 +2427,7 @@ Value setstakesplitthreshold(const Array& params, bool fHelp)
 		
 		return result;
 	}
+*/
 }
 
 // presstab HyperStake
@@ -2358,12 +2436,17 @@ Value getstakesplitthreshold(const Array& params, bool fHelp)
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getstakesplitthreshold\n"
-            "Returns the set splitstakethreshold\n");
+            "Returns the set splitstakethreshold\n"
+            "Note: This function is depreciated in favor of splitthreshold\n");
 
+    Object result;
+    result.push_back(Pair("split threshold", ValueFromAmount(nSplitThreshold)));
+    return result;
+/*
 	Object result;
 	result.push_back(Pair("split stake threshold set to ", int(pwalletMain->nStakeSplitThreshold)));
 	return result;
-
+*/
 }
 
 Value addstakeout(const Array &params, bool fHelp)

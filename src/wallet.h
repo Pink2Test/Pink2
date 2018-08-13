@@ -113,7 +113,7 @@ public:
     MasterKeyMap mapMasterKeys;
     unsigned int nMasterKeyMaxID;
 	bool fSplitBlock;
-	uint64_t nStakeSplitThreshold;
+    // uint64_t nStakeSplitThreshold;
 
     CWallet()
     {
@@ -126,7 +126,7 @@ public:
         strWalletFile = strWalletFileIn;
         fFileBacked = true;
 		fSplitBlock =  false;
-		nStakeSplitThreshold = 1000;
+        // nStakeSplitThreshold = 1000;
     }
     void SetNull()
     {
@@ -138,7 +138,7 @@ public:
         nOrderPosNext = 0;
         nTimeFirstKey = 0;
 		fSplitBlock =  false;
-		nStakeSplitThreshold = 1000;
+        // nStakeSplitThreshold = 1000;
     }
 
     std::map<uint256, CWalletTx> mapWallet;
