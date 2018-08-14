@@ -76,6 +76,10 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
+// POS Voting:
+CScript VOTE_CASTING = CScript() << NULL;
+CScript VOTE_BALLOT = CScript() << NULL;
+
 const string strMessageMagic = "Pinkcoin Signed Message:\n";
 
 // Settings

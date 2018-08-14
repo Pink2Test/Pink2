@@ -135,8 +135,20 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     }
     else
     {
+        time_t rawtime;
+        time ( &rawtime );
+
+        VOTE_CASTING = (CScript() << NULL);
+
+        if (VOTE_BALLOT != VOTE_CASTING && !IsFlashStake(rawtime))
+        {
+            if (COINBASE_FLAGS.Find(OP_VOTE) < 1)
+                COINBASE_FLAGS += (CScript() << OP_VOTE);
+            VOTE_CASTING = VOTE_BALLOT;
+        }
+
         // Height first in coinbase required for block.version=2
-        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS;
+        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS + VOTE_CASTING;
         assert(txNew.vin[0].scriptSig.size() <= 100);
 
         txNew.vout[0].SetEmpty();

@@ -49,6 +49,8 @@ inline int64_t PastDrift(int64_t nTime)   { return nTime - 10 * 60; } // up to 1
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes from the future
 
 extern CScript COINBASE_FLAGS;
+extern CScript VOTE_CASTING;
+extern CScript VOTE_BALLOT;
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;
