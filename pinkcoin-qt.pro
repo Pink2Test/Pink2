@@ -329,7 +329,8 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/sendmessagesdialog.h \
     src/qt/sendmessagesentry.h \
     src/qt/plugins/mrichtexteditor/mrichtextedit.h \
-    src/qt/qvalidatedtextedit.h
+    src/qt/qvalidatedtextedit.h \
+    src/vote.h
 
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -408,7 +409,8 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/scrypt-x86_64.S \
     src/scrypt.cpp \
     src/pbkdf2.cpp \
-    src/stealth.cpp
+    src/stealth.cpp \
+    src/vote.cpp
 
 RESOURCES += \
     src/qt/bitcoin.qrc 

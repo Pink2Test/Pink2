@@ -817,7 +817,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     if ((int)keys.size() < nRequired)
         throw runtime_error(
             strprintf("not enough keys supplied "
-                      "(got %u keys, but need at least %d to redeem)", keys.size(), nRequired));
+                      "(got %zu keys, but need at least %d to redeem)", keys.size(), nRequired));
     std::vector<CKey> pubkeys;
     pubkeys.resize(keys.size());
     for (unsigned int i = 0; i < keys.size(); i++)
@@ -1193,7 +1193,7 @@ Value listaccounts(const Array& params, bool fHelp)
     map<string, CBitcoinAddress> mapAccountAddresses;
     BOOST_FOREACH(const PAIRTYPE(CTxDestination, string)& entry, pwalletMain->mapAddressBook) {
         if (IsMine(*pwalletMain, entry.first)) // This address belongs to me
-            mapAccountBalances[entry.second] = CBitcoinAddress(entry.first);
+            mapAccountAddresses[entry.second] = CBitcoinAddress(entry.first);
     }
 
  /*
@@ -1227,8 +1227,8 @@ Value listaccounts(const Array& params, bool fHelp)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
 */
     Object ret;
-    BOOST_FOREACH(const PAIRTYPE(string, CBitcoinAddress)& accountAddress, mapAccountBalances) {
-        ret.push_back(Pair(accountAddress.first, ValueFromAmount(accountAddress.second.ToString())));
+    BOOST_FOREACH(const PAIRTYPE(string, CBitcoinAddress)& accountAddress, mapAccountAddresses) {
+        ret.push_back(Pair(accountAddress.first, accountAddress.second.ToString()));
     }
     return ret;
 }

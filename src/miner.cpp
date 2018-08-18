@@ -110,7 +110,7 @@ public:
 CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 {
     // Create new block
-    auto_ptr<CBlock> pblock(new CBlock());
+    unique_ptr<CBlock> pblock(new CBlock());
     if (!pblock.get())
         return NULL;
 
@@ -138,7 +138,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
         time_t rawtime;
         time ( &rawtime );
 
-        VOTE_CASTING = (CScript() << NULL);
+        VOTE_CASTING.clear();
 
         if (VOTE_BALLOT != VOTE_CASTING && !IsFlashStake(rawtime))
         {
@@ -591,7 +591,7 @@ void StakeMiner(CWallet *pwallet)
         // Create new block
         //
         int64_t nFees;
-        auto_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
         if (!pblock.get())
             return;
 

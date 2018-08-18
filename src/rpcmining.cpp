@@ -546,6 +546,7 @@ Value getvoteinfo(const Array& params, bool fHelp)
     Object aux;
     aux.push_back(Pair("flags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
 
+    Object result;
     result.push_back(Pair("voteinfo", aux));
 
     return result;

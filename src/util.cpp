@@ -371,7 +371,7 @@ string FormatMoney(int64_t n, bool fPlus)
     int64_t n_abs = (n > 0 ? n : -n);
     int64_t quotient = n_abs/COIN;
     int64_t remainder = n_abs%COIN;
-    string str = strprintf("%d.%08d", quotient, remainder);
+    string str = strprintf("%ld.%08ld", quotient, remainder);
 
     // Right-trim excess zeros before the decimal point:
     int nTrim = 0;
@@ -1054,6 +1054,11 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "pinkconf.txt"));
+    if (!boost::filesystem::exists(pathConfigFile))
+    {
+        boost::filesystem::path pathConfigFile2("pinkcoin.conf");  // accept classic .conf files.
+        pathConfigFile = pathConfigFile2;
+    }
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
     return pathConfigFile;
 }
@@ -1188,7 +1193,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
 
     // Add data
     vTimeOffsets.input(nOffsetSample);
-    printf("Added time data, samples %d, offset %+d (%+d minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
+    printf("Added time data, samples %d, offset %+ld (%+ld minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
 
     // There is a known issue here (see issue #4521):
     //
@@ -1241,10 +1246,10 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
         }
         if (fDebug) {
             BOOST_FOREACH(int64_t n, vSorted)
-                printf("%+d  ", n);
+                printf("%+ld  ", n);
             printf("|  ");
         }
-        printf("nTimeOffset = %+d  (%+d minutes)\n", nTimeOffset, nTimeOffset/60);
+        printf("nTimeOffset = %+ld  (%+ld minutes)\n", nTimeOffset, nTimeOffset/60);
     }
 }
 

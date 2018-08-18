@@ -271,9 +271,9 @@ WalletModel::SendCoinsReturn WalletModel::sendCoins(const QList<SendCoinsRecipie
                     
                     if (fDebug)
                     {
-                        printf("Stealth send to generated pubkey %u: %s\n", pkSendTo.size(), HexStr(pkSendTo).c_str());
+                        printf("Stealth send to generated pubkey %zu: %s\n", pkSendTo.size(), HexStr(pkSendTo).c_str());
                         printf("hash %s\n", addrTo.ToString().c_str());
-                        printf("ephem_pubkey %u: %s\n", ephem_pubkey.size(), HexStr(ephem_pubkey).c_str());
+                        printf("ephem_pubkey %zu: %s\n", ephem_pubkey.size(), HexStr(ephem_pubkey).c_str());
                     };
                     
                     CScript scriptPubKey;
