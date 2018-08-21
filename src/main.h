@@ -14,6 +14,7 @@
 #include <list>
 
 class CWallet;
+class CVote;
 class CBlock;
 class CBlockIndex;
 class CKeyItem;
@@ -98,6 +99,8 @@ class CTxIndex;
 
 void RegisterWallet(CWallet* pwalletIn);
 void UnregisterWallet(CWallet* pwalletIn);
+void RegisterWallet(CVote* pwalletIn);
+void UnregisterWallet(CVote* pwalletIn);
 void SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false, bool fConnect = true);
 bool ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool CheckDiskSpace(uint64_t nAdditionalBytes=0);
@@ -637,7 +640,7 @@ public:
     {
         std::string str;
         str += IsCoinBase()? "Coinbase" : (IsCoinStake()? "Coinstake" : "CTransaction");
-        str += strprintf("(hash=%s, nTime=%d, currentTime=%d, ver=%d, vin.size=%zu, vout.size=%zu, nLockTime=%d)\n",
+        str += strprintf("(hash=%s, nTime=%d, currentTime=%d, ver=%d, vin.size=%" PRIszu ", vout.size=%" PRIszu ", nLockTime=%d)\n",
             GetHash().ToString().substr(0,10).c_str(),
             nTime,
             (unsigned int)GetTime(),
@@ -1061,7 +1064,7 @@ public:
 
     void print() const
     {
-        printf("CBlock(hash=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%zu, vchBlockSig=%s)\n",
+        printf("CBlock(hash=%s, ver=%d, hashPrevBlock=%s, hashMerkleRoot=%s, nTime=%u, nBits=%08x, nNonce=%u, vtx=%" PRIszu ", vchBlockSig=%s)\n",
             GetHash().ToString().c_str(),
             nVersion,
             hashPrevBlock.ToString().c_str(),

@@ -430,7 +430,7 @@ static string HTTPReply(int nStatus, const string& strMsg, bool keepalive)
             "HTTP/1.1 %d %s\r\n"
             "Date: %s\r\n"
             "Connection: %s\r\n"
-            "Content-Length: %zu\r\n"
+            "Content-Length: %" PRIszu "\r\n"
             "Content-Type: application/json\r\n"
             "Server: pinkcoin-json-rpc/%s\r\n"
             "\r\n"

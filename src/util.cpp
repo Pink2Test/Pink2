@@ -161,7 +161,7 @@ void RandAddSeedPerfmon()
     {
         RAND_add(pdata, nSize, nSize/100.0);
         OPENSSL_cleanse(pdata, nSize);
-        printf("RandAddSeed() %lu bytes\n", nSize);
+        printf("RandAddSeed() %" PRIu64 " bytes\n", nSize);
     }
 #endif
 }
@@ -371,7 +371,7 @@ string FormatMoney(int64_t n, bool fPlus)
     int64_t n_abs = (n > 0 ? n : -n);
     int64_t quotient = n_abs/COIN;
     int64_t remainder = n_abs%COIN;
-    string str = strprintf("%ld.%08ld", quotient, remainder);
+    string str = strprintf("%" PRId64 ".%08ld", quotient, remainder);
 
     // Right-trim excess zeros before the decimal point:
     int nTrim = 0;
@@ -1026,13 +1026,13 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 
     fs::path &path = pathCached[fNetSpecific];
 
+
     // This can be called during exceptions by printf, so we cache the
     // value so we don't have to do memory allocations after that.
     if (cachedPath[fNetSpecific])
         return path;
 
     LOCK(csPathCached);
-
     if (mapArgs.count("-datadir")) {
         path = fs::system_complete(mapArgs["-datadir"]);
         if (!fs::is_directory(path)) {
@@ -1193,7 +1193,7 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
 
     // Add data
     vTimeOffsets.input(nOffsetSample);
-    printf("Added time data, samples %d, offset %+ld (%+ld minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
+    printf("Added time data, samples %d, offset %+" PRId64 " (%+" PRId64 " minutes)\n", vTimeOffsets.size(), nOffsetSample, nOffsetSample/60);
 
     // There is a known issue here (see issue #4521):
     //
@@ -1246,10 +1246,10 @@ void AddTimeData(const CNetAddr& ip, int64_t nTime)
         }
         if (fDebug) {
             BOOST_FOREACH(int64_t n, vSorted)
-                printf("%+ld  ", n);
+                printf("%+" PRId64 "  ", n);
             printf("|  ");
         }
-        printf("nTimeOffset = %+ld  (%+ld minutes)\n", nTimeOffset, nTimeOffset/60);
+        printf("nTimeOffset = %+" PRId64 "   (%+" PRId64 " minutes)\n", nTimeOffset, nTimeOffset/60);
     }
 }
 

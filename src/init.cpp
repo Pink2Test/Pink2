@@ -5,6 +5,7 @@
 #include "txdb.h"
 #include "walletdb.h"
 #include "stakedb.h"
+#include "votedb.h"
 #include "bitcoinrpc.h"
 #include "net.h"
 #include "init.h"
@@ -32,6 +33,7 @@ using namespace boost;
 
 CWallet* pwalletMain;
 CWallet* pstakeDB;
+CVote* pvoteDB;
 CClientUIInterface uiInterface;
 bool fConfChange;
 unsigned int nNodeLifespan;
@@ -96,8 +98,10 @@ void Shutdown(void* parg)
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
         UnregisterWallet(pstakeDB);
+        UnregisterWallet(pvoteDB);
         delete pwalletMain;
         delete pstakeDB;
+        delete pvoteDB;
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("Pinkcoin exited\n\n");
@@ -110,7 +114,7 @@ void Shutdown(void* parg)
     else
     {
         while (!fExit)
-            MilliSleep(500);
+            MilliSleep(100);
         MilliSleep(100);
         ExitThread(0);
     }
@@ -534,6 +538,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     std::string strDataDir = GetDataDir().string();
     std::string strWalletFileName = GetArg("-wallet", "wallet.dat");
     std::string strStakeDBFileName = GetArg("-stakedb", "stake.dat");
+    std::string strVoteDBFileName = GetArg("-votedb", "vote.dat");
 
     // strWalletFileName must be a plain filename without a directory
     if (strWalletFileName != boost::filesystem::basename(strWalletFileName) + boost::filesystem::extension(strWalletFileName))
@@ -541,7 +546,11 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     // strStakeDBFileName must be a plain filename without a directory
     if (strStakeDBFileName != boost::filesystem::basename(strStakeDBFileName) + boost::filesystem::extension(strStakeDBFileName))
-        return InitError(strprintf(_("Wallet %s resides outside data directory %s."), strStakeDBFileName.c_str(), strDataDir.c_str()));
+        return InitError(strprintf(_("DB %s resides outside data directory %s."), strStakeDBFileName.c_str(), strDataDir.c_str()));
+
+    // strStakeDBFileName must be a plain filename without a directory
+    if (strVoteDBFileName != boost::filesystem::basename(strVoteDBFileName) + boost::filesystem::extension(strVoteDBFileName))
+        return InitError(strprintf(_("DB %s resides outside data directory %s."), strVoteDBFileName.c_str(), strDataDir.c_str()));
 
     // Make sure only a single Bitcoin process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
@@ -627,6 +636,19 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (filesystem::exists(GetDataDir() / strStakeDBFileName))
     {
         CDBEnv::VerifyResult r = bitdb.Verify(strStakeDBFileName, CStakeDB::Recover);
+        if (r == CDBEnv::RECOVER_OK)
+        {
+            string msg = strprintf(_("Warning: stake.dat corrupt, data salvaged!"
+                                     " Original stake.dat saved as stake.{timestamp}.bak in %s;"), strDataDir.c_str());
+            uiInterface.ThreadSafeMessageBox(msg, _("Pinkcoin"), CClientUIInterface::OK | CClientUIInterface::ICON_EXCLAMATION | CClientUIInterface::MODAL);
+        }
+        if (r == CDBEnv::RECOVER_FAIL)
+            return InitError(_("wallet.dat corrupt, salvage failed"));
+    }
+
+    if (filesystem::exists(GetDataDir() / strVoteDBFileName))
+    {
+        CDBEnv::VerifyResult r = bitdb.Verify(strVoteDBFileName, CVoteDB::Recover);
         if (r == CDBEnv::RECOVER_OK)
         {
             string msg = strprintf(_("Warning: stake.dat corrupt, data salvaged!"
@@ -861,6 +883,7 @@ bool AppInit2(boost::thread_group& threadGroup)
     nStart = GetTimeMillis();
     bool fFirstRun = true;
     bool fFirstStakeOut = true;
+    bool fFirstVote = true;
     pwalletMain = new CWallet(strWalletFileName);
     DBErrors nLoadWalletRet = pwalletMain->LoadWallet(fFirstRun);
     if (nLoadWalletRet != DB_LOAD_OK)
@@ -909,6 +932,29 @@ bool AppInit2(boost::thread_group& threadGroup)
             strErrors << _("Error loading stake.dat") << "\n";
     }
 
+    pvoteDB = new CVote(strVoteDBFileName);
+
+    VDBErrors nLoadVoteDBRet = pvoteDB->LoadVoteDB(fFirstVote);
+    if (nLoadVoteDBRet != VDB_LOAD_OK)
+    {
+        if (nLoadVoteDBRet == VDB_CORRUPT)
+            strErrors << _("Error loading vote.dat: VoteDB corrupted") << "\n";
+        else if (nLoadVoteDBRet == VDB_NONCRITICAL_ERROR)
+        {
+            string msg(_("Warning: error reading vote.dat! Saved ballots & polls have been reset."));
+            uiInterface.ThreadSafeMessageBox(msg, _("Pinkcoin"), CClientUIInterface::OK | CClientUIInterface::ICON_EXCLAMATION | CClientUIInterface::MODAL);
+        }
+        else if (nLoadVoteDBRet == VDB_TOO_NEW)
+            strErrors << _("Error loading vote.dat: VoteDB requires newer version of Pinkcoin") << "\n";
+        else if (nLoadVoteDBRet == VDB_NEED_REWRITE)
+        {
+            strErrors << _("VoteDB needed to be rewritten: restart Pinkcoin to complete") << "\n";
+            printf("%s", strErrors.str().c_str());
+            return InitError(strErrors.str());
+        }
+        else
+            strErrors << _("Error loading vote.dat") << "\n";
+    }
 
     if (GetBoolArg("-upgradewallet", fFirstRun))
     {
@@ -944,6 +990,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     RegisterWallet(pwalletMain);
     RegisterWallet(pstakeDB);
+    RegisterWallet(pvoteDB);
 
     CBlockIndex *pindexRescan = pindexBest;
     if (GetBoolArg("-rescan"))
@@ -1003,7 +1050,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             printf("Invalid or missing peers.dat; recreating\n");
     }
 
-    printf("Loaded %i addresses from peers.dat  %ldms\n",
+    printf("Loaded %i addresses from peers.dat  %" PRId64 "ms\n",
            addrman.size(), GetTimeMillis() - nStart);
     
     
@@ -1019,11 +1066,11 @@ bool AppInit2(boost::thread_group& threadGroup)
     RandAddSeedPerfmon();
 
     //// debug print
-    printf("mapBlockIndex.size() = %zu\n",   mapBlockIndex.size());
+    printf("mapBlockIndex.size() = %" PRIszu "\n",   mapBlockIndex.size());
     printf("nBestHeight = %d\n",            nBestHeight);
-    printf("setKeyPool.size() = %zu\n",      pwalletMain->setKeyPool.size());
-    printf("mapWallet.size() = %zu\n",       pwalletMain->mapWallet.size());
-    printf("mapAddressBook.size() = %zu\n",  pwalletMain->mapAddressBook.size());
+    printf("setKeyPool.size() = %" PRIszu "\n",      pwalletMain->setKeyPool.size());
+    printf("mapWallet.size() = %" PRIszu "\n",       pwalletMain->mapWallet.size());
+    printf("mapAddressBook.size() = %" PRIszu "\n",  pwalletMain->mapAddressBook.size());
 
     if (!NewThread(StartNode, NULL))
         InitError(_("Error: could not start node"));
