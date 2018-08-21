@@ -14,15 +14,29 @@ CVote::CVote()
     clear();
 }
 
-void ActivePoll::active(const PollStack::iterator& pit, const BallotStack::iterator& bit)
+void ActivePoll::setActive(PollStack::iterator &pit, BallotStack::iterator &bit, unsigned int flags)
 {
-     ID = pit->first;
-     poll = pit->second;
-     BID = bit->first;
-     ballot = bit->second;
+     if (flags & SET_POLL)
+     {
+         ID = pit->first;
+         poll = &pit->second;
+         pIt = pit;
+     }
+     if (flags & SET_BALLOT)
+     {
+        BID = bit->first;
+        ballot = &bit->second;
+        bIt = bit;
+     }
+     if (flags == SET_CLEAR)
+     {
+         BID = ID = 0;
+         bIt = bit;
+         pIt = pit;
+         poll = new CVotePoll();
+         ballot = new CVoteBallot();
+     }
 
-     pollIt = pit;
-     ballotIt = bit;
 }
 
 void CVote::clear()
@@ -42,17 +56,18 @@ void CVote::clear()
     activeBallot->PollID = 0;
     activeBallot->OpSelection = 0;
 
-
+    pollCache.clear();
     pollStack.clear();
     ballotStack.clear();
 
     pollStack.insert(make_pair(activePoll->ID, *activePoll));
+    pollCache.insert(make_pair(activePoll->ID, *activePoll));
     ballotStack.insert(make_pair(activeBallot->PollID, *activeBallot));
 
-    current.poll = *activePoll;
-    current.ballot = *activeBallot;
+    current.poll = activePoll;
+    current.ballot = activeBallot;
 
-    current.active(pollStack.find(activePoll->ID), ballotStack.find(activeBallot->PollID));
+    current.setActive(current.pIt, current.bIt, ActivePoll::SET_CLEAR);
 
     this->havePoll = false;
     this->optionCount = 0;

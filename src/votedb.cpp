@@ -296,485 +296,215 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
         CVoteBallot activeBallot;
         string strVoteID = "";
 
+        ActivePoll stack;
+
         ssKey >> strType;
-        if (strType == "name")
+
+        if (ssKey.size() > 0)
         {
             ssKey >> strVoteID;
 
-            activePoll.ID = stoul(strVoteID);
+            activePoll.ID = (CPollID)stoul(strVoteID);
+            activeBallot.PollID = activePoll.ID;
+
+            int flags = ActivePoll::SET_CLEAR;
+            stack.bIt = voteIndex->ballotStack.find(activeBallot.PollID);
+            flags |= (stack.bIt != voteIndex->ballotStack.end()) ? ActivePoll::SET_BALLOT : ActivePoll::SET_CLEAR;
+
+            if (strType.find("Local", 0) == string::npos)
+            {
+                stack.pIt = voteIndex->pollCache.find(activePoll.ID);
+                flags |= (stack.pIt != voteIndex->pollCache.end()) ? ActivePoll::SET_POLL : ActivePoll::SET_CLEAR;
+            }
+            else
+            {
+                stack.pIt = voteIndex->pollStack.find(activePoll.ID);
+                flags |= (stack.pIt != voteIndex->pollStack.end()) ? ActivePoll::SET_POLL : ActivePoll::SET_CLEAR;
+            }
+
+            stack.setActive(stack.pIt, stack.bIt, flags);
+        }
+
+        if (strType.rfind("name", 0) == 0)
+        {
             ssValue >> activePoll.Name;
 
-            ActivePoll cache;
-            cache.active(voteIndex->pollCache.find(activePoll.ID));
+            size_t typeLen = strlen("name");
+            if (strType.size() == typeLen)
+            {
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->Name = activePoll.Name;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->Name = activePoll.Name;
 
-            if (cache.pollIt == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                cache.poll.Name = activePoll.Name;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
+            }
         }
-        else if (strType == "flags")
+        else if (strType.rfind("flags", 0) == 0)
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strFlags;
             ssValue >> strFlags;
             activePoll.Flags = (CPollFlags)stoi(strFlags);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).Flags = activePoll.Flags;
+            size_t typeLen = strlen("flags");
+            if (strType.size() == typeLen)
+            {
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->Flags = activePoll.Flags;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->Flags = activePoll.Flags;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
+            }
         }
-        else if (strType == "start")
+        else if (strType.rfind("start", 0) == 0)
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strPollTime;
             ssValue >> strPollTime;
             activePoll.Start = (CPollTime)stoi(strPollTime);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).Start = activePoll.Start;
+            size_t typeLen = strlen("start");
+            if (strType.size() == typeLen)
+            {
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->Start = activePoll.Start;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->Start = activePoll.Start;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
+            }
         }
-        else if (strType == "end")
+        else if (strType.rfind("end", 0) == 0)
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strPollTime;
             ssValue >> strPollTime;
             activePoll.End = (CPollTime)stoi(strPollTime);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).End = activePoll.End;
-        }
-        else if (strType == "question")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollQuestion;
-            ssValue >> strPollQuestion;
-            activePoll.Question = strPollQuestion;
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).Question = activePoll.Question;
-        }
-        else if (strType == "option1")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
+            size_t typeLen = strlen("end");
+            if (strType.size() == typeLen)
             {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->End = activePoll.End;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->End = activePoll.End;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
-        else if (strType == "option2")
+        else if (strType.rfind("question", 0) == 0)
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
+            ssValue >> activePoll.Question;
 
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
+            size_t typeLen = strlen("question");
+            if (strType.size() == typeLen)
             {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->Question = activePoll.Question;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->Question = activePoll.Question;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
-        else if (strType == "option3")
+        else if (strType.rfind("option", 0) == 0)
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strPollOption;
             ssValue >> strPollOption;
             activePoll.Option.push_back(strPollOption);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
+            size_t typeLen = strlen("option#");
+            if (strType.size() == typeLen)
             {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option4")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
+                if (stack.pIt != voteIndex->pollCache.end())
+                {
+                    stack.poll->Option.push_back(strPollOption);
+                    stack.poll->OpCount = (uint8_t)stack.poll->Option.size();
+                }
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
 
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
+            } else if (strType.find("Local", typeLen) != string::npos)
             {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option5")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option6")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option7")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option8")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollCache.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollCache.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollCache.at(activePoll.ID).Question.size();
+                if (stack.pIt != voteIndex->pollStack.end())
+                {
+                    stack.poll->Option.push_back(strPollOption);
+                    stack.poll->OpCount = (uint8_t)stack.poll->Option.size();
+                }
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
         else if (strType == "txhash")
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strTxHash;
             ssValue >> strTxHash;
             activePoll.hash.SetHex(strTxHash);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).hash = activePoll.hash;
+            size_t typeLen = strlen("txhash");
+            if (strType.size() == typeLen)
+            {
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->hash = activePoll.hash;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->hash = activePoll.hash;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
+            }
         }
         else if (strType == "height")
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strHeight;
             ssValue >> strHeight;
             activePoll.nHeight = (uint64_t)stoul(strHeight);
 
-            if (voteIndex->pollCache.find(activePoll.ID) == voteIndex->pollCache.end())
-                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollCache.at(activePoll.ID).nHeight = activePoll.nHeight;
-        }
-        if (strType == "nameLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            ssValue >> activePoll.Name;
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).Name = activePoll.Name;
-        }
-        else if (strType == "flagsLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strFlags;
-            ssValue >> strFlags;
-            activePoll.Flags = (CPollFlags)stoi(strFlags);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).Flags = activePoll.Flags;
-        }
-        else if (strType == "startLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollTime;
-            ssValue >> strPollTime;
-            activePoll.Start = (CPollTime)stoi(strPollTime);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).Start = activePoll.Start;
-        }
-        else if (strType == "endLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollTime;
-            ssValue >> strPollTime;
-            activePoll.End = (CPollTime)stoi(strPollTime);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).End = activePoll.End;
-        }
-        else if (strType == "questionLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollQuestion;
-            ssValue >> strPollQuestion;
-            activePoll.Question = strPollQuestion;
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).Question = activePoll.Question;
-        }
-        else if (strType == "option1Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
+            size_t typeLen = strlen("height");
+            if (strType.size() == typeLen)
             {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option2Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->nHeight = activePoll.nHeight;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
             {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->nHeight = activePoll.nHeight;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
-        }
-        else if (strType == "option3Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option4Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option5Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option6Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option7Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "option8Local")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strPollOption;
-            ssValue >> strPollOption;
-            activePoll.Option.push_back(strPollOption);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-            {
-                voteIndex->pollStack.at(activePoll.ID).Option.push_back(strPollOption);
-                voteIndex->pollStack.at(activePoll.ID).OpCount = (uint8_t)voteIndex->pollStack.at(activePoll.ID).Question.size();
-            }
-        }
-        else if (strType == "txhashLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strTxHash;
-            ssValue >> strTxHash;
-            activePoll.hash.SetHex(strTxHash);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).hash = activePoll.hash;
-        }
-        else if (strType == "heightLocal")
-        {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
-            string strHeight;
-            ssValue >> strHeight;
-            activePoll.nHeight = (uint64_t)stoul(strHeight);
-
-            if (voteIndex->pollStack.find(activePoll.ID) == voteIndex->pollStack.end())
-                voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
-            else
-                voteIndex->pollStack.at(activePoll.ID).nHeight = activePoll.nHeight;
         }
         else if (strType == "ballotID")
         {
-            ssKey >> strVoteID;
-            activePoll.ID = (CPollID)stoul(strVoteID);
-
             string strOpSelection;
             ssValue >> strOpSelection;
             activeBallot.OpSelection = (COptionID)stoi(strOpSelection);
             activeBallot.PollID = activePoll.ID;
 
-            if (voteIndex->ballotStack.find(activePoll.ID) == voteIndex->ballotStack.end() )
+            if (stack.bIt == voteIndex->ballotStack.end() )
                 voteIndex->ballotStack.insert(make_pair(activePoll.ID, activeBallot));
         }
     } catch (...)
@@ -901,7 +631,6 @@ void ThreadFlushVoteDB(void* parg)
                         printf("Flushed Vote.dat %" PRId64 "ms\n", GetTimeMillis() - nStart);
 
                         bitdb.Open(strFile);
-                        //CVoteDB(pvoteDB->strWalletFile).LoadVote(pvoteDB); // reload our cache
                     }
                 }
             }

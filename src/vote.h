@@ -43,6 +43,9 @@ struct CVoteBallot
 
 struct CVotePoll
 {
+    CVotePoll(){ clear(); }
+
+    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; Option.clear(); hash = 0; nHeight = 0;}
     CPollID ID;                             // 4 Bytes
     CPollName Name;                         // 15 Bytes
     CPollFlags Flags;                       // 1 Byte
@@ -61,23 +64,34 @@ typedef union { unsigned char b[8]; uint64_t n; } nHeightByte;
 typedef map<CPollID, CVotePoll> PollStack;
 typedef map<CPollID, CVoteBallot> BallotStack;
 
-static PollStack::iterator pollIterator;
-static BallotStack::iterator ballotIterator;
+enum APFlags {
+    SET_CLEAR = 0,
+    SET_POLL = (1U << 0),
+    SET_BALLOT = (1U << 1),
+    SET_POLL_AND_BALLOT = SET_POLL | SET_BALLOT
+};
+
 struct ActivePoll
 {
 
+    enum {
+        SET_CLEAR = 0,
+        SET_POLL = (1U << 0),
+        SET_BALLOT = (1U << 1),
+        SET_POLL_AND_BALLOT = SET_POLL | SET_BALLOT
+    };
+
     CPollID ID;
-    CVotePoll& poll;
+    CVotePoll* poll;
     CPollID BID;
-    CVoteBallot& ballot;
-    PollStack::iterator& pollIt;
-    BallotStack::iterator& ballotIt;
+    CVoteBallot* ballot;
+    PollStack::iterator& pIt;
+    BallotStack::iterator& bIt;
 
-    ActivePoll() :  poll(*(new CVotePoll)), ballot(*(new CVoteBallot)),
-        pollIt(*(new PollStack::iterator)), ballotIt(*(new BallotStack::iterator))
-    { ID = 0; BID =0; }
+    ActivePoll() :  pIt(*(new PollStack::iterator)), bIt(*(new BallotStack::iterator))
+    { ID = 0; BID =0; setActive(pIt, bIt, SET_CLEAR); poll->clear();}
 
-    void active(const PollStack::iterator& pit = pollIterator, const BallotStack::iterator& bit = ballotIterator );
+    void setActive(PollStack::iterator &pit, BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
 };
 
 class CVote : public CWallet
@@ -101,16 +115,12 @@ public:
     void clear();
     CVote();
 
-
     CVote(std::string strVoteFileIn)
     {
-        //clear();
-
+        clear();
         strWalletFile = strVoteFileIn;
         fFileBacked = true;
     }
-
-
 
     enum flags : CPollFlags {
         POLL_ENFORCE_POS        = 0,           // POS Only. No other votes are allowed (default).
@@ -137,7 +147,6 @@ public:
     BallotStack ballotStack;  // Our ballots for our saved polls.
 
     ActivePoll current;
-
 };
 
 
