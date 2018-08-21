@@ -91,7 +91,9 @@ OBJS= \
     obj/scrypt-x86_64.o \
 	obj/stakedb.o \
     obj/smessage.o \
-    obj/stealth.o 
+    obj/stealth.o \
+    obj/vote.o \
+    obj/votedb.o 
 
 all: pink2d.exe
 
