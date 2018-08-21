@@ -21,6 +21,7 @@ using namespace boost;
 
 unsigned int nWalletDBUpdated;
 unsigned int nStakeDBUpdated;
+unsigned int nVoteDBUpdated;
 
 
 
@@ -252,6 +253,7 @@ CDB::CDB(const char *pszFile, const char* pszMode) :
         strFile = pszFile;
         ++bitdb.mapFileUseCount[strFile];
         pdb = bitdb.mapDb[strFile];
+
         if (pdb == NULL)
         {
             pdb = new Db(&bitdb.dbenv, 0);

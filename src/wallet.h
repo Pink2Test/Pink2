@@ -17,6 +17,7 @@
 #include "script.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "votedb.h"
 #include "stakedb.h"
 #include "walletdb.h"
 #include "stealth.h"
@@ -95,7 +96,6 @@ public:
     ///      fFileBacked (immutable after instantiation)
     ///      strWalletFile (immutable after instantiation)
     mutable CCriticalSection cs_wallet;
-    //mutable CCriticalSection cs_stake;
 
     bool fFileBacked;
     std::string strWalletFile;
@@ -331,6 +331,7 @@ public:
 
     DBErrors LoadWallet(bool& fFirstRunRet);
     SDBErrors LoadStakeDB(bool& fFirstRunRet);
+    VDBErrors LoadVoteDB(bool& fFirstRunRet);
 
     bool SetAddressBookName(const CTxDestination& address, const std::string& strName);
 

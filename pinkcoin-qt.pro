@@ -277,6 +277,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/txdb.h \
     src/walletdb.h \
     src/stakedb.h \
+    src/votedb.h \
     src/script.h \
     src/stealth.h \
     src/init.h \
@@ -300,6 +301,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/transactiondescdialog.h \
     src/qt/bitcoinamountfield.h \
     src/wallet.h \
+    src/vote.h \
     src/keystore.h \
     src/qt/transactionfilterproxy.h \
     src/qt/transactionview.h \
@@ -329,8 +331,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/sendmessagesdialog.h \
     src/qt/sendmessagesentry.h \
     src/qt/plugins/mrichtexteditor/mrichtextedit.h \
-    src/qt/qvalidatedtextedit.h \
-    src/vote.h
+    src/qt/qvalidatedtextedit.h
 
 SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/qt/transactiontablemodel.cpp \
@@ -361,6 +362,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/db.cpp \
     src/walletdb.cpp \
     src/stakedb.cpp \
+    src/votedb.cpp \
     src/qt/clientmodel.cpp \
     src/qt/guiutil.cpp \
     src/qt/transactionrecord.cpp \
