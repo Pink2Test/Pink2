@@ -522,7 +522,7 @@ VDBErrors CVoteDB::LoadVote(CVote* voteIndex)
     VDBErrors result = VDB_LOAD_OK;
 
     try {
-        LOCK(voteIndex->cs_vote);
+        LOCK(voteIndex->cs_wallet);
 
         // Get cursor
         Dbc* pcursor = GetCursor();
