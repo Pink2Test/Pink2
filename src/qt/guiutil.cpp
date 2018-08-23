@@ -179,6 +179,8 @@ QString getEntryData(QAbstractItemView *view, int column, int role)
         // Copy first item
         return selection.at(0).data(role).toString();
     }
+
+    return "";
 }
 
 QString getSaveFileName(QWidget *parent, const QString &caption,

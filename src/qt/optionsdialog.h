@@ -19,8 +19,11 @@ public:
     explicit OptionsDialog(QWidget *parent = 0);
     ~OptionsDialog();
 
-    void setModel(OptionsModel *model);
+    void setModel(OptionsModel *model, OptionsDialog *dlg);
     void setMapper();
+
+    qint64 getUiCombineThreshold();
+    qint64 getUiSplitThreshold();
 
 protected:
     bool eventFilter(QObject *object, QEvent *event);

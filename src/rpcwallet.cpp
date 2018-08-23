@@ -817,7 +817,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     if ((int)keys.size() < nRequired)
         throw runtime_error(
             strprintf("not enough keys supplied "
-                      "(got %u keys, but need at least %d to redeem)", keys.size(), nRequired));
+                      "(got %" PRIszu " keys, but need at least %d to redeem)", keys.size(), nRequired));
     std::vector<CKey> pubkeys;
     pubkeys.resize(keys.size());
     for (unsigned int i = 0; i < keys.size(); i++)
@@ -1179,23 +1179,24 @@ Value listtransactions(const Array& params, bool fHelp)
 
 Value listaccounts(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 0)
         throw runtime_error(
             "listaccounts [minconf=1]\n"
             "Returns Object that has account names as keys, account balances as values.");
 
-    accountingDeprecationCheck();
+//    accountingDeprecationCheck();
 
-    int nMinDepth = 1;
-    if (params.size() > 0)
-        nMinDepth = params[0].get_int();
+//    int nMinDepth = 1;
+//   if (params.size() > 0)
+//        nMinDepth = params[0].get_int();
 
-    map<string, int64_t> mapAccountBalances;
+    map<string, CBitcoinAddress> mapAccountAddresses;
     BOOST_FOREACH(const PAIRTYPE(CTxDestination, string)& entry, pwalletMain->mapAddressBook) {
         if (IsMine(*pwalletMain, entry.first)) // This address belongs to me
-            mapAccountBalances[entry.second] = 0;
+            mapAccountAddresses[entry.second] = CBitcoinAddress(entry.first);
     }
 
+ /*
     for (map<uint256, CWalletTx>::iterator it = pwalletMain->mapWallet.begin(); it != pwalletMain->mapWallet.end(); ++it)
     {
         const CWalletTx& wtx = (*it).second;
@@ -1224,10 +1225,10 @@ Value listaccounts(const Array& params, bool fHelp)
     CWalletDB(pwalletMain->strWalletFile).ListAccountCreditDebit("*", acentries);
     BOOST_FOREACH(const CAccountingentry& entry, acentries)
         mapAccountBalances[entry.strAccount] += entry.nCreditDebit;
-
+*/
     Object ret;
-    BOOST_FOREACH(const PAIRTYPE(string, int64_t)& accountBalance, mapAccountBalances) {
-        ret.push_back(Pair(accountBalance.first, ValueFromAmount(accountBalance.second)));
+    BOOST_FOREACH(const PAIRTYPE(string, CBitcoinAddress)& accountAddress, mapAccountAddresses) {
+        ret.push_back(Pair(accountAddress.first, accountAddress.second.ToString()));
     }
     return ret;
 }
@@ -1755,7 +1756,7 @@ Value combinethreshold(const Array& params, bool fHelp)
            int64_t nAmount = params[0].get_int64();
            if (nAmount < 100)
                throw runtime_error("Cannot set combine threshold lower than 100 coins.\n");
-           if (nAmount > nSplitThreshold / 2)
+           if (nAmount >= nSplitThreshold)
                throw runtime_error("Combine threshold must be half the combined threshold or less.\n");
            nCombineThreshold = nAmount;
         }
@@ -1783,9 +1784,9 @@ Value splitthreshold(const Array& params, bool fHelp)
         {
            int64_t nAmount = params[0].get_int64();
            if (nAmount > 1000000)
-               throw runtime_error("Cannot set combine threshold higher than 1000000 coins.\n");
-           if (nAmount < nCombineThreshold * 2)
-               throw runtime_error("Split threshold must be at least double the combined threshold.\n");
+               throw runtime_error("Cannot set split threshold higher than 1000000 coins.\n");
+           if (nAmount <= nCombineThreshold)
+               throw runtime_error("Split threshold must be more than combined threshold.\n");
            nSplitThreshold = nAmount;
         }
     }

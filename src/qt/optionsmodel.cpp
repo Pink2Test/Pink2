@@ -3,8 +3,11 @@
 #include <QSettings>
 
 #include "init.h"
+#include "optionsdialog.h"
 #include "walletdb.h"
 #include "guiutil.h"
+
+#include <QMessageBox>
 
 OptionsModel::OptionsModel(QObject *parent) :
     QAbstractListModel(parent)
@@ -72,25 +75,26 @@ void OptionsModel::Init()
 
     if (valCombineThreshold == 0 || valSplitThreshold == 0)
     {
-        nSplitThreshold = valSplitThreshold = 2000;
-        nCombineThreshold = valCombineThreshold = 1000;
-    } else {
-
-        if (nSplitThreshold == 2000 || valSplitThreshold == 200000)
-        {
-            nSplitThreshold = valSplitThreshold;
-        } else {
-            settings.setValue("nSplitThreshold", (qint64) nSplitThreshold);  // it's already been set, so lets update our settings.
-        }
-
-        if (nCombineThreshold == 1000 || valCombineThreshold == 100000)
-        {
-            nCombineThreshold = valCombineThreshold;
-        } else {
-            settings.setValue("nCombineThreshold", (qint64) nCombineThreshold); // it's already been set, so lets update our settings.
-
-        }
+        valSplitThreshold = 2000;
+        valCombineThreshold = 1000;
     }
+
+
+    if (nSplitThreshold == 2000 || valSplitThreshold == 200000)
+    {
+        nSplitThreshold = valSplitThreshold;
+    } else {
+        settings.setValue("nSplitThreshold", (qint64) nSplitThreshold);  // it's already been set, so lets update our settings.
+    }
+
+    if (nCombineThreshold == 1000 || valCombineThreshold == 100000)
+    {
+        nCombineThreshold = valCombineThreshold;
+    } else {
+        settings.setValue("nCombineThreshold", (qint64) nCombineThreshold); // it's already been set, so lets update our settings.
+
+    }
+
 
 }
 
@@ -261,26 +265,22 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             }
             break;
         case SplitThreshold:
-            if (value.toLongLong() < nCombineThreshold * 2 && nCombineThreshold != 100000)
+            if (value.toLongLong() < dlg->getUiCombineThreshold() || value.toLongLong() < 200)
             {
                 successful=false;
+                QMessageBox::information(dlg, "Invalid Split Threshold", "Split Threshold must be greater than Combine Threshold and at least 200.");
                 break;
             }
 
             nSplitThreshold = value.toLongLong();
-            if (nSplitThreshold < 200)
-                nSplitThreshold = 200;
-
             settings.setValue("nSplitThreshold", (qint64) nSplitThreshold);
             emit splitThresholdChanged(nSplitThreshold);
-
-            if (nSplitThreshold < nCombineThreshold)
-                nCombineThreshold = nSplitThreshold / 2;
             break;
         case CombineThreshold:
-            if (value.toLongLong() > nSplitThreshold / 2 || value.toLongLong() < 100)
+            if (value.toLongLong() > dlg->getUiSplitThreshold() || value.toLongLong() < 100)
             {
                 successful=false;
+                QMessageBox::information(dlg, "Invalid Combine Threshold", "Combine Threshold must be less than Split Threshold and at least 100.");
                 break;
             }
             nCombineThreshold = value.toLongLong();
@@ -295,6 +295,7 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
 
     return successful;
 }
+
 
 qint64 OptionsModel::getTransactionFee()
 {

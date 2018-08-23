@@ -38,7 +38,7 @@ LIBS= \
 
 DEFS=-D_MT -DWIN32 -D_WINDOWS -DBOOST_THREAD_USE_LIB -DBOOST_SPIRIT_THREADSAFE
 DEBUGFLAGS=-g
-CFLAGS=-O3 -msse2 -w -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
+CFLAGS=-O2 -std=c++11 -msse2 -w -Wall -Wextra -Wno-ignored-qualifiers -Wformat -Wformat-security -Wno-unused-parameter $(DEBUGFLAGS) $(DEFS) $(INCLUDEPATHS)
 LDFLAGS=-Wl,--dynamicbase -Wl,--nxcompat -static-libgcc -static-libstdc++
 
 ifndef USE_UPNP
@@ -91,7 +91,9 @@ OBJS= \
     obj/scrypt-x86_64.o \
 	obj/stakedb.o \
     obj/smessage.o \
-    obj/stealth.o 
+    obj/stealth.o \
+    obj/vote.o \
+    obj/votedb.o 
 
 all: pink2d.exe
 
