@@ -3,10 +3,10 @@
 // Distributed under the MIT/X11 software license, see the accompanying
 // file COPYING or http://www.opensource.org/licenses/mit-license.php.
 
-#include "votedb.h"
-#include "vote.h"
 #include "bitcoinrpc.h"
 #include "init.h"
+#include "votedb.h"
+#include "vote.h"
 #include "base58.h"
 #include <boost/lexical_cast.hpp>
 
