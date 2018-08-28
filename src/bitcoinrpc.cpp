@@ -288,7 +288,6 @@ static const CRPCCommand vRPCCommands[] =
     { "listaccounts",           &listaccounts,           false,  false },
     { "settxfee",               &settxfee,               false,  false },
     { "getblocktemplate",       &getblocktemplate,       true,   false },
-    { "getvoteinfo",            &getvoteinfo,            true,   false },
     { "submitblock",            &submitblock,            false,  false },
     { "listsinceblock",         &listsinceblock,         false,  false },
     { "dumpprivkey",            &dumpprivkey,            false,  false },
@@ -341,6 +340,7 @@ static const CRPCCommand vRPCCommands[] =
     { "smsginbox",              &smsginbox,              false,  false},
     { "smsgoutbox",             &smsgoutbox,             false,  false},
     { "smsgbuckets",            &smsgbuckets,            false,  false},
+    { "vote",                   &vote,                   false,  false},
 };
 
 CRPCTable::CRPCTable()

@@ -164,7 +164,7 @@ extern json_spirit::Value getstakinginfo(const json_spirit::Array& params, bool 
 extern json_spirit::Value getwork(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getworkex(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value getblocktemplate(const json_spirit::Array& params, bool fHelp);
-extern json_spirit::Value getvoteinfo(const json_spirit::Array& params, bool fHelp);
+extern json_spirit::Value getpollinfo(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value submitblock(const json_spirit::Array& params, bool fHelp);
 
 extern json_spirit::Value getnewaddress(const json_spirit::Array& params, bool fHelp); // in rpcwallet.cpp
@@ -255,5 +255,7 @@ extern json_spirit::Value smsgsendanon(const json_spirit::Array& params, bool fH
 extern json_spirit::Value smsginbox(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value smsgoutbox(const json_spirit::Array& params, bool fHelp);
 extern json_spirit::Value smsgbuckets(const json_spirit::Array& params, bool fHelp);
+
+extern json_spirit::Value vote(const json_spirit::Array& params, bool fHelp);
 
 #endif
