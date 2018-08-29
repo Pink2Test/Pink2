@@ -12,8 +12,6 @@
 #include <votedb.h>
 
 
-
-
 using namespace std;
 
 const size_t POLL_ID_SIZE        = 4;
@@ -126,12 +124,15 @@ public:
         POLL_ENFORCE_POS        = 0,           // POS Only. No other votes are allowed (default).
         POLL_ALLOW_POS          = (1U << 0),   // Custom Poll Requirements - Allow POS Votes
         POLL_ALLOW_FPOS         = (1U << 1),   // Allow FPOS Votes
-        POLL_ALLOW_SIDE_STAKE   = (1U << 2),   // Allow Side-Stake Votes
-        POLL_ALLOW_POW          = (1U << 3),   // Allow POW Votes
-        POLL_ALLOW_D4L          = (1U << 4),   // Allow Votes with D4L Donations - Minimum Donation 10 PINK.
-        POll_ALLOW_TX10         = (1U << 5),   // Allow Transaction Votes (Transactions to Poll Originator). Minimum 10 PINK.
-        POLL_BY_BLOCKHEIGHT     = (1U << 6),   // Use Blockheights instead of Blocktimes for start and end times. (100 Block Increments)
-        POLL_VOTE_PER_ADDRESS   = (1U << 7),   // Only accept 1 vote per address.
+        POLL_ALLOW_POW          = (1U << 2),   // Allow POW Votes
+        POLL_ALLOW_D4L          = (1U << 3),   // Allow Votes with D4L Donations - Minimum Donation 10 PINK.
+        POLL_VOTE_PER_ADDRESS   = (1U << 4),   // Only accept 1 vote per address.
+        POll_FUNDRAISER         = (1U << 5),   // Fundraiser poll. Reset poll fields, treat as Fundraiser.
+        POLL_BOUNTY             = (1U << 6),   // Bounty poll. Reset poll fields, treat as Bounty.
+        POLL_CLAIM              = (1U << 7)       |  // Bounty/Fundraiser claim poll. Force sets POS, FPOS, and POW.
+                                  POLL_ALLOW_POS  |
+                                  POLL_ALLOW_FPOS |
+                                  POLL_ALLOW_POW
     };
 
     void saveActive();
@@ -153,5 +154,7 @@ public:
 int64_t GetPollTime(CPollTime& pTime, int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll& a, CVotePoll& b);
+
+
 
 #endif // VOTE_H

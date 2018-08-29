@@ -15,7 +15,7 @@ using namespace std;
 using namespace boost;
 
 void BallotInfo(const Array& params, Object& retObj, string& helpText)
-{
+{      
     string param1 = "";
     if (params.size() > 1)
         param1 = params[1].get_str();
@@ -24,7 +24,16 @@ void BallotInfo(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote ballotinfo\n"
                             "Returns the PollID and selected vote for the current active poll.\n");
 
-    retObj.push_back(Pair("ballotinfo", "WIP"));
+    if (pvoteDB->current.ballot->PollID != 0)
+    {
+        try
+        {
+            retObj.push_back(Pair("PollID", to_string(pvoteDB->current.ballot->PollID)));
+            retObj.push_back(Pair("Selectoin", pvoteDB->current.poll->Option[pvoteDB->current.ballot->OpSelection]));
+        } catch (...) {
+            throw runtime_error("Failed to retrieve ballot info.\n");
+        }
+    }
 }
 
 void PollInfo(const Array& params, Object& retObj, string& helpText)
@@ -37,7 +46,17 @@ void PollInfo(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote pollinfo\n"
                             "Returns the voting information for the current active poll.\n");
 
-    retObj.push_back(Pair("pollinfo", "WIP"));
+    if (pvoteDB->current.poll->ID != 0)
+    {
+        try
+        {
+            retObj.push_back(Pair("PollID", to_string(pvoteDB->current.poll->ID)));
+            retObj.push_back(Pair("Poll Name", pvoteDB->current.poll->Name));
+        } catch (...) {
+            throw runtime_error("Failed to retrieve poll info. \n");
+        }
+    }
+
 }
 
 void Tally(const Array& params, Object& retObj, string& helpText)
@@ -155,7 +174,170 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
                             "User MUST vote confirm if the information is accurate in order to register \n"
                             "the poll with the blockchain.\n");
 
-    retObj.push_back(Pair("setactive", "WIP"));
+    retObj.push_back(Pair("submitpoll", "WIP"));
+}
+
+void PollName(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote pollname [name] \n"
+                            "Sets the name for the currently active poll.\n");
+
+    retObj.push_back(Pair("pollname", "WIP"));
+
+}
+
+void PollQuestion(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote pollquestion [question text] \n"
+                            "Sets the question for the currently active poll.\n");
+
+    retObj.push_back(Pair("pollquestion", "WIP"));
+
+}
+
+void PollStart(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote pollstart [unix timestamp] \n"
+                            "Sets the start time for the currently active poll.\n");
+
+    retObj.push_back(Pair("pollstart", "WIP"));
+
+}
+
+void PollEnd(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote pollend [unix timestamp] \n"
+                            "Sets the end time for the currently active poll.\n");
+
+    retObj.push_back(Pair("pollend", "WIP"));
+
+}
+
+void SetFlag(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote setflag [flag] \n"
+                        "Sets a particular flag for the currently active poll.\n"
+                        "Available flags:\n"
+                        "|  ENFORCE_POS - Resets all flags. Only POS votes accepted.\n"
+                        "|  POS         - Accept POS Votes.\n"
+                        "|  FPOS        - Accept FPOS Votes. \n"
+                        "|  POW         - Accept POW Votes.\n"
+                        "|  D4L         - Accept D4L Donation Votes.\n"
+                        "|  PER_ADDRESS - Accept one vote per address.\n"
+                        "|  FUNDRAISER  - Designates Poll as Fundraiser. Resets all fields.\n"
+                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser. Resets all fields.\n"
+                        "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
+                        "|                  Force Sets appropriate flags and resets all fields.\n");
+
+
+    retObj.push_back(Pair("setflag", "WIP"));
+
+}
+
+void UnsetFlag(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote unsetflag [flag] \n"
+                    "Sets a particular flag for the currently active poll.\n"
+                        "Available flags:\n"
+                        "|  ENFORCE_POS - Resets all flags. Only POS votes accepted.\n"
+                        "|  POS         - Accept POS Votes.\n"
+                        "|  FPOS        - Accept FPOS Votes. \n"
+                        "|  POW         - Accept POW Votes.\n"
+                        "|  D4L         - Accept D4L Donation Votes.\n"
+                        "|  PER_ADDRESS - Accept one vote per address.\n"
+                        "|  FUNDRAISER  - Designates Poll as Fundraiser. Resets all fields.\n"
+                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser. Resets all fields.\n"
+                        "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
+                        "|                  Force Sets appropriate flags and resets all fields.\n");
+
+    retObj.push_back(Pair("unsetflag", "WIP"));
+
+}
+
+void AddOption(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote addoption [option text] \n"
+                            "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+
+    retObj.push_back(Pair("add", "WIP"));
+
+}
+
+void RemoveOption(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote removeoption [option number] \n"
+                            "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+
+    retObj.push_back(Pair("add", "WIP"));
+
+}
+
+void FundAddress(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote removeoption [option number] \n"
+                            "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+
+    retObj.push_back(Pair("add", "WIP"));
+
+}
+
+void BountyAddress(const Array& params, Object& retObj, string& helpText)
+{
+    string param1 = "";
+    if (params.size() > 1)
+        param1 = params[1].get_str();
+
+    if (param1 != "help" || params.size() > 2)
+        helpText = ("vote removeoption [option number] \n"
+                            "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+
+    retObj.push_back(Pair("add", "WIP"));
+
 }
 
 void ListActive(const Array& params, Object& retObj, string& helpText)
@@ -301,6 +483,17 @@ Value vote(const Array& params, bool fHelp)
                       "|  newpoll\n"
                       "|  setactive [PollID]\n"
                       "|  submitpoll\n"
+                      "Editing Controls:\n"
+                      "|  pollname [name]\n"
+                      "|  pollquestion [question text]\n"
+                      "|  pollstart [unix timestamp]\n"
+                      "|  pollend [unix timestamp]\n"
+                      "|  setflag [flag]\n"
+                      "|  unsetflag [flag]\n"
+                      "|  addoption [option text]\n"
+                      "|  removeoption [option number]\n"
+                      "|  fundaddress [pink address]\n"
+                      "|  bountyaddress [pink address]\n"
                       "Navigation:\n"
                       "|  listactive [page number]\n"
                       "|  listcomplete [page number]\n"
@@ -337,6 +530,26 @@ Value vote(const Array& params, bool fHelp)
         SetActive(params, retObj, cHelpText);
     else if (command == "submitpoll")
         SubmitPoll(params, retObj, cHelpText);
+    else if (command == "pollname")
+        PollName(params, retObj, cHelpText);
+    else if (command == "pollquestion")
+        PollQuestion(params, retObj, cHelpText);
+    else if (command == "pollstart")
+        PollStart(params, retObj, cHelpText);
+    else if (command == "pollend")
+        PollEnd(params, retObj, cHelpText);
+    else if (command == "setflag")
+        SetFlag(params, retObj, cHelpText);
+    else if (command == "unsetflag")
+        UnsetFlag(params, retObj, cHelpText);
+    else if (command == "addoption")
+        AddOption(params, retObj, cHelpText);
+    else if (command == "removeoption")
+        RemoveOption(params, retObj, cHelpText);
+    else if (command == "fundaddress")
+        FundAddress(params, retObj, cHelpText);
+    else if (command == "bountyaddress")
+        BountyAddress(params, retObj, cHelpText);
     else if (command == "listactive")
         ListActive(params, retObj, cHelpText);
     else if (command == "listcomplete")
