@@ -36,6 +36,59 @@ void BallotInfo(const Array& params, Object& retObj, string& helpText)
     }
 }
 
+void GetPoll(Object& retObj)
+{
+    if (pvoteDB->current.poll->ID != 0)
+    {
+        try
+        {
+            retObj.push_back(Pair("PollID", to_string(pvoteDB->current.poll->ID)));
+            retObj.push_back(Pair("Poll Name", pvoteDB->current.poll->Name));
+            retObj.push_back(Pair("Poll Question", pvoteDB->current.poll->Question));
+
+            int64_t pollStart = GetPollTime(pvoteDB->current.poll->Start);
+            int64_t pollEnd = GetPollTime(pvoteDB->current.poll->End);
+
+            retObj.push_back(Pair("Poll Start", to_string(pollStart)));
+            retObj.push_back(Pair("Poll End", to_string(pollEnd)));
+
+            Object retFlags;
+            if (pvoteDB->current.poll->Flags == CVote::POLL_ENFORCE_POS)
+                retFlags.push_back(Pair("ENFORCE_POS", "enabled"));
+            if (pvoteDB->current.poll->Flags & CVote::POLL_ALLOW_POS)
+                retFlags.push_back(Pair("POS", "enabled"));
+            if (pvoteDB->current.poll->Flags & CVote::POLL_ALLOW_FPOS)
+                retFlags.push_back(Pair("FPOS", "enabled"));
+            if (pvoteDB->current.poll->Flags & CVote::POLL_ALLOW_POW)
+                retFlags.push_back(Pair("POW", "enabled"));
+            if (pvoteDB->current.poll->Flags & CVote::POLL_ALLOW_D4L)
+                retFlags.push_back(Pair("D4L", "enabled"));
+            if (pvoteDB->current.poll->Flags & CVote::POLL_VOTE_PER_ADDRESS)
+                retFlags.push_back(Pair("PER_ADDRESS", "enabled"));
+            if (pvoteDB->current.poll->Flags == CVote::POll_FUNDRAISER)
+                retFlags.push_back(Pair("FUNDRAISER", "enabled"));
+            if (pvoteDB->current.poll->Flags == CVote::POLL_BOUNTY)
+                retFlags.push_back(Pair("BOUNTY", "enabled"));
+            if (pvoteDB->current.poll->Flags == CVote::POLL_CLAIM)
+                retFlags.push_back(Pair("CLAIM", "enabled"));
+
+            retObj.push_back(Pair("Flags", retFlags));
+
+            if (pvoteDB->current.poll->OpCount != (uint8_t)pvoteDB->current.poll->Option.size())
+                throw runtime_error("Number of options does not match opcount.");
+
+            for (int i = pvoteDB->current.poll->OpCount; i > 0 ; i-- )
+            {
+                string opIndex = "Option #" + to_string(i);
+                retObj.push_back(Pair(opIndex, pvoteDB->current.poll->Option[i-1]));
+            };
+
+        } catch (...) {
+            throw runtime_error("Failed to retrieve poll info. \n");
+        }
+    }
+}
+
 void PollInfo(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
@@ -46,17 +99,7 @@ void PollInfo(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote pollinfo\n"
                             "Returns the voting information for the current active poll.\n");
 
-    if (pvoteDB->current.poll->ID != 0)
-    {
-        try
-        {
-            retObj.push_back(Pair("PollID", to_string(pvoteDB->current.poll->ID)));
-            retObj.push_back(Pair("Poll Name", pvoteDB->current.poll->Name));
-        } catch (...) {
-            throw runtime_error("Failed to retrieve poll info. \n");
-        }
-    }
-
+    GetPoll(retObj);
 }
 
 void Tally(const Array& params, Object& retObj, string& helpText)
@@ -116,7 +159,8 @@ void GetActive(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote getactive\n"
                             "Returns the PollID for the currently active poll.\n");
 
-    retObj.push_back(Pair("getactive", "WIP"));
+
+    retObj.push_back(Pair("Active PollID", to_string(pvoteDB->current.poll->ID)));
 }
 
 void MakeSelection(const Array& params, Object& retObj, string& helpText)
@@ -132,7 +176,17 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote makeselection <selection number>\n"
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
-    retObj.push_back(Pair("makeselection", "WIP"));
+    if (nSelect > 0 && nSelect < pvoteDB->current.poll->OpCount && pvoteDB->current.ballot->PollID == pvoteDB->current.poll->ID)
+    {
+       pvoteDB->current.ballot->OpSelection = nSelect - 1;
+       string opSelection = "Option #" + to_string(nSelect);
+       retObj.push_back(Pair("PollID", to_string(pvoteDB->current.ballot->PollID)));
+       retObj.push_back(Pair(opSelection, pvoteDB->current.poll->Option[pvoteDB->current.ballot->OpSelection]));
+    } else {
+        throw runtime_error("Selection out of range.\n");
+    }
+
+
 }
 
 void NewPoll(const Array& params, Object& retObj, string& helpText)
@@ -145,7 +199,10 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote newpoll\n"
                             "Creates a new poll, sets it to active, and returns it's PollID.\n");
 
-    retObj.push_back(Pair("newpoll", "WIP"));
+    CVotePoll *newPoll = new CVotePoll();
+    newPoll->clear();
+    pvoteDB->newPoll(newPoll, true);
+    retObj.push_back(Pair("New PollID", to_string(pvoteDB->current.poll->ID)));
 }
 
 void SetActive(const Array& params, Object& retObj, string& helpText)

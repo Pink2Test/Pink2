@@ -14,7 +14,7 @@ CVote::CVote()
     clear();
 }
 
-void ActivePoll::setActive(PollStack::iterator &pit, BallotStack::iterator &bit, unsigned int flags)
+void ActivePoll::setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags)
 {
      if (flags & SET_POLL)
      {
@@ -78,15 +78,14 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
 {
     bool completePoll = true;
     // Save our current ballot & poll
-    if (!createPoll)
-        saveActive();
+    //if (!createPoll)
+        //saveActive();
 
     if (poll->ID == 0)
         poll->ID = getNewPollID();
 
     CVote *blankVote = new CVote();
-    CVotePoll *pointPoll = new CVotePoll();
-    CVotePoll findPoll = *pointPoll;
+    CVotePoll *findPoll = new CVotePoll();
 
 /*
     if (poll == blankVote->activePoll)
@@ -97,7 +96,7 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
 */
     if (getPoll(poll->ID, findPoll)) // Have Poll
     {
-        CVotePoll thisPoll = *poll;
+        CVotePoll *thisPoll = poll;
         if (!pollCompare(findPoll, thisPoll))  // Polls with the same PollID must be identical.
         {
             poll->ID = getNewPollID();
@@ -107,9 +106,21 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
 
         // Shouldn't get this far, but if for some strange reason the poll we are setting does
         // match what we already have cached, then we'll load it like we're getPoll().
-        activePoll = poll;
-        activeBallot->PollID = poll->ID;
-        activeBallot->OpSelection = 0;
+        current.poll = poll;
+        if (ballotStack.find(current.poll->ID) != ballotStack.end())
+            current.setActive(current.pIt, ballotStack.find(current.poll->ID), ActivePoll::SET_BALLOT);
+        else {
+            current.ballot->PollID = current.poll->ID;
+            current.ballot->OpSelection = 0;
+            ballotStack.insert(make_pair(current.ballot->PollID, *current.ballot));
+        }
+
+        if (pollStack.find(poll->ID) != pollStack.end())
+            current.setActive(pollStack.find(poll->ID), current.bIt, ActivePoll::SET_POLL);
+        else {
+            pollStack.insert(make_pair(poll->ID, *current.poll));
+        }
+        /*
 
         if (pollStack.find(poll->ID) == pollStack.end())        // Add to our saved polls
             pollStack.insert(make_pair(poll->ID, *poll));
@@ -118,7 +129,7 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
             ballotStack.insert(make_pair(poll->ID, *activeBallot));
         else
             activeBallot->OpSelection = ballotStack.at(poll->ID).OpSelection;  // Load saved selection
-
+        */
         havePoll = true;
         return true;
     }
@@ -155,7 +166,7 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
         printf("[CVote::setPoll] Option count out of range, must have 2-8 options to select. \n");
         completePoll = false;
     }
-
+/*
     activePoll = poll;    // successfully set a new poll.
     activeBallot->PollID = poll->ID;
     activeBallot->OpSelection = 0;
@@ -167,6 +178,22 @@ bool CVote::newPoll(CVotePoll* poll, bool createPoll)
         ballotStack.insert(make_pair(poll->ID, *activeBallot));
     else
         activeBallot->OpSelection = ballotStack.at(poll->ID).OpSelection;  // Load saved selection
+*/
+
+    current.poll = poll;
+    if (ballotStack.find(current.poll->ID) != ballotStack.end())
+        current.setActive(current.pIt, ballotStack.find(current.poll->ID), ActivePoll::SET_BALLOT);
+    else {
+        current.ballot->PollID = current.poll->ID;
+        current.ballot->OpSelection = 0;
+        ballotStack.insert(make_pair(current.ballot->PollID, *current.ballot));
+    }
+
+    if (pollStack.find(poll->ID) != pollStack.end())
+        current.setActive(pollStack.find(poll->ID), current.bIt, ActivePoll::SET_POLL);
+    else {
+        pollStack.insert(make_pair(poll->ID, *current.poll));
+    }
 
     havePoll = true;
     return completePoll;
@@ -185,18 +212,18 @@ void CVote::saveActive()
         pollStack.insert(make_pair(activePoll->ID, *activePoll));
 }
 
-bool CVote::getPoll(CPollID& pollID, CVotePoll& poll)
+bool CVote::getPoll(CPollID& pollID, CVotePoll* poll)
 {
     // Save our current ballot and poll
-    saveActive();
+    // saveActive();
 
     if (pollStack.find(pollID) != pollStack.end())
     {
-        poll = pollStack.at(pollID);
+        poll = &pollStack.at(pollID);
         return true;
     } else if (pollCache.find(pollID) != pollCache.end())
     {
-        poll = pollCache.at(pollID);
+        poll = &pollCache.at(pollID);
         return true;
     }
     return false;
@@ -204,17 +231,17 @@ bool CVote::getPoll(CPollID& pollID, CVotePoll& poll)
 
 
 // Because c++ doesn't like comparing structures/classes.
-bool pollCompare(CVotePoll& a, CVotePoll& b)
+bool pollCompare(CVotePoll* a, CVotePoll* b)
 {
-    if (a.ID != b.ID || a.Name != b.Name ||
-        a.Question != b.Question || a.Start != b.Start ||
-        a.End != b.End || a.Flags != b.Flags || a.hash != b.hash ||
-        a.nHeight != b.nHeight)
+    if (a->ID != b->ID || a->Name != b->Name ||
+        a->Question != b->Question || a->Start != b->Start ||
+        a->End != b->End || a->Flags != b->Flags || a->hash != b->hash ||
+        a->nHeight != b->nHeight)
     return false;
 
-    for (unsigned int i=0 ; i < a.Option.size() ; i++)
+    for (unsigned int i=0 ; i < a->Option.size() ; i++)
     {
-        if (a.Option[i] != b.Option[i])
+        if (a->Option[i] != b->Option[i])
             return false;
     }
     return true;

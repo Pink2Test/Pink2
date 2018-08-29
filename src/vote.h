@@ -43,7 +43,7 @@ struct CVotePoll
 {
     CVotePoll(){ clear(); }
 
-    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; Option.clear(); hash = 0; nHeight = 0;}
+    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0;}
     CPollID ID;                             // 4 Bytes
     CPollName Name;                         // 15 Bytes
     CPollFlags Flags;                       // 1 Byte
@@ -89,7 +89,7 @@ struct ActivePoll
     ActivePoll() :  pIt(*(new PollStack::iterator)), bIt(*(new BallotStack::iterator))
     { ID = 0; BID =0; setActive(pIt, bIt, SET_CLEAR); poll->clear();}
 
-    void setActive(PollStack::iterator &pit, BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
+    void setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
 };
 
 class CVote : public CWallet
@@ -138,7 +138,7 @@ public:
     void saveActive();
     bool newPoll(CVotePoll* poll, bool createPoll = false);
     bool setPoll(CPollID& pollID);
-    bool getPoll(CPollID& pollID, CVotePoll& poll);
+    bool getPoll(CPollID& pollID, CVotePoll* poll);
 
     CVotePoll getActivePoll();
     VDBErrors LoadVoteDB(bool& fFirstRunRet);
@@ -153,7 +153,7 @@ public:
 
 int64_t GetPollTime(CPollTime& pTime, int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
-bool pollCompare(CVotePoll& a, CVotePoll& b);
+bool pollCompare(CVotePoll* a, CVotePoll* b);
 
 
 
