@@ -33,7 +33,8 @@ using namespace boost;
 
 CWallet* pwalletMain;
 CWallet* pstakeDB;
-CVote* pvoteDB;
+CVoteDB* pvoteDB;
+CVote* vIndex;
 CClientUIInterface uiInterface;
 bool fConfChange;
 unsigned int nNodeLifespan;
@@ -98,10 +99,10 @@ void Shutdown(void* parg)
         boost::filesystem::remove(GetPidFile());
         UnregisterWallet(pwalletMain);
         UnregisterWallet(pstakeDB);
-        UnregisterWallet(pvoteDB);
+        UnregisterWallet(vIndex);
         delete pwalletMain;
         delete pstakeDB;
-        delete pvoteDB;
+        delete vIndex;
         NewThread(ExitTimeout, NULL);
         MilliSleep(50);
         printf("Pinkcoin exited\n\n");
@@ -932,9 +933,11 @@ bool AppInit2(boost::thread_group& threadGroup)
             strErrors << _("Error loading stake.dat") << "\n";
     }
 
-    pvoteDB = new CVote(strVoteDBFileName);
+    vIndex = new CVote(strVoteDBFileName);
 
-    VDBErrors nLoadVoteDBRet = pvoteDB->LoadVoteDB(fFirstVote);
+    VDBErrors nLoadVoteDBRet = vIndex->LoadVoteDB(fFirstVote);
+
+    pvoteDB = new CVoteDB(strVoteDBFileName);
     if (nLoadVoteDBRet != VDB_LOAD_OK)
     {
         if (nLoadVoteDBRet == VDB_CORRUPT)
@@ -990,7 +993,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     RegisterWallet(pwalletMain);
     RegisterWallet(pstakeDB);
-    RegisterWallet(pvoteDB);
+    RegisterWallet(vIndex);
 
     CBlockIndex *pindexRescan = pindexBest;
     if (GetBoolArg("-rescan"))

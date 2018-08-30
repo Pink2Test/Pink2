@@ -13,7 +13,8 @@ namespace boost {
 
 extern CWallet* pwalletMain;
 extern CWallet* pstakeDB;
-extern CVote* pvoteDB;
+extern CVoteDB* pvoteDB;
+extern CVote* vIndex;
 void StartShutdown();
 void Shutdown(void* parg);
 bool AppInit2(boost::thread_group& threadGroup);

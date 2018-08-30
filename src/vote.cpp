@@ -260,20 +260,32 @@ CPollID CVote::getNewPollID()
 
 bool CVote::setPoll(CPollID& pollID)
 {
+    bool setPoll = false;
     if (pollCache.find(pollID) != pollCache.end())
     {
-        *activePoll = pollCache.at(pollID);
+        current.setActive(pollCache.find(pollID), current.bIt, ActivePoll::SET_POLL);
         havePoll = true;
-        return true;
+        setPoll=true;
     }
     if (pollStack.find(pollID) != pollStack.end())
     {
-        *activePoll = pollStack.at(pollID);
+        current.setActive(pollStack.find(pollID), current.bIt, ActivePoll::SET_POLL);
         havePoll = true;
-        return true;
+        setPoll=true;
     }
 
-    return false; // didn't find a poll to set.
+    if (setPoll && ballotStack.find(pollID) != ballotStack.end())
+    {
+        current.setActive(current.pIt, ballotStack.find(pollID), ActivePoll::SET_BALLOT);
+    } else if (setPoll) {
+        CVoteBallot *newBallot = new CVoteBallot;
+        newBallot->PollID = pollID;
+        newBallot->OpSelection = 0;
+        ballotStack.insert(make_pair(newBallot->PollID, *newBallot));
+        current.setActive(current.pIt, ballotStack.find(newBallot->PollID), ActivePoll::SET_BALLOT);
+    }
+
+    return setPoll;
 }
 
 CVotePoll CVote::getActivePoll()
