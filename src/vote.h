@@ -153,7 +153,7 @@ public:
 
 
 int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight = pindexBest->nHeight);
-CPollTime GetPollTime(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
+CPollTime GetPollTime2(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
 

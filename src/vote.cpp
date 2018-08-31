@@ -324,7 +324,7 @@ int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight)
     return pollTime;
 }
 
-CPollTime GetPollTime(const int64_t &uTime, const int &blockHeight)
+CPollTime GetPollTime2(const int64_t &uTime, const int &blockHeight)
 {
 
     int bHeight = blockHeight;

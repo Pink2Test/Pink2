@@ -33,7 +33,7 @@ bool isNumber(const string& s)
 
 void SetTime (string& setTime, CPollTime& pollTime)
 {
-    pollTime = GetPollTime(stol(setTime));
+    pollTime = GetPollTime2(stol(setTime));
 
     struct tm* timePoint;
     char dT [30];
@@ -251,11 +251,11 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
     int nSelect = stoi(param1);
     string checkSize = to_string(nSelect);
 
-    if (param1 != checkSize || nSelect > 6 || params.size() > 2)
+    if (param1 != checkSize || nSelect > (int)POLL_OPTION_COUNT || params.size() > 2)
         helpText = ("vote makeselection <selection number>\n"
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
-    if (nSelect > 0 && nSelect < vIndex->current.poll->OpCount && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
+    if (nSelect > 0 && nSelect < (vIndex->current.poll->OpCount +1) && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
     {
        vIndex->current.ballot->OpSelection = nSelect - 1;
        string opSelection = "Option #" + to_string(nSelect);
@@ -394,7 +394,7 @@ void PollStart(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
 
-    if (isNumber(param1) && stol(param1) > GetPollTime((CPollTime)0))
+    if (isNumber(param1) && stol(param1) > GetPollTime(0))
     {
         SetTime(param1, vIndex->current.poll->Start);           // Repurposing Param1 here to hold formatted Day & Time.
 
@@ -418,7 +418,7 @@ void PollEnd(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
 
-    if (isNumber(param1) && stol(param1) > GetPollTime((CPollTime)0))
+    if (isNumber(param1) && stol(param1) > GetPollTime(0))
     {
         SetTime(param1, vIndex->current.poll->End);           // Repurposing Param1 here to hold formatted Day & Time.
 
