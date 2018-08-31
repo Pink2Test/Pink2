@@ -62,7 +62,7 @@ void BallotInfo(const Array& params, Object& retObj, string& helpText)
         try
         {
             retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
-            retObj.push_back(Pair("Selectoin", vIndex->current.poll->Option[vIndex->current.ballot->OpSelection]));
+            retObj.push_back(Pair("Selection", vIndex->current.poll->Option[vIndex->current.ballot->OpSelection]));
         } catch (...) {
             throw runtime_error("Failed to retrieve ballot info.\n");
         }
@@ -97,6 +97,22 @@ void PrintFlags(Object& retObj)
     retObj.push_back(Pair("Flags", retFlags));
 }
 
+void PrintOptions(Object& retObj)
+{
+    if (vIndex->current.poll->OpCount != vIndex->current.poll->Option.size() || !HaveActive())
+        return;
+
+    Object retOps;
+
+    for (int i = 0; i < (int)vIndex->current.poll->OpCount ; i++ )
+    {
+        string opIndex = "Option #" + to_string(i+1);
+        retOps.push_back(Pair(opIndex, vIndex->current.poll->Option[i]));
+    };
+
+    retObj.push_back(Pair("Options", retOps));
+}
+
 void GetPoll(Object& retObj)
 {
     if (vIndex->current.poll->ID != 0)
@@ -117,7 +133,6 @@ void GetPoll(Object& retObj)
             retObj.push_back(Pair("Poll Start", sPollStart));
             retObj.push_back(Pair("Poll End", sPollEnd));
 
-            PrintFlags(retObj);
 /*
             Object retFlags;
             if (vIndex->current.poll->Flags == CVote::POLL_ENFORCE_POS)
@@ -144,11 +159,8 @@ void GetPoll(Object& retObj)
             if (vIndex->current.poll->OpCount != (uint8_t)vIndex->current.poll->Option.size())
                 throw runtime_error("Number of options does not match opcount.");
 
-            for (int i = vIndex->current.poll->OpCount; i > 0 ; i-- )
-            {
-                string opIndex = "Option #" + to_string(i);
-                retObj.push_back(Pair(opIndex, vIndex->current.poll->Option[i-1]));
-            };
+            PrintFlags(retObj);
+            PrintOptions(retObj);
 
         } catch (...) {
             throw runtime_error("Failed to retrieve poll info. \n");
@@ -250,6 +262,7 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
        retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
        retObj.push_back(Pair(opSelection, vIndex->current.poll->Option[vIndex->current.ballot->OpSelection]));
 
+       CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
     } else {
         throw runtime_error("Selection out of range.\n");
     }
@@ -540,7 +553,24 @@ void AddOption(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote addoption [option text] \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
 
-    retObj.push_back(Pair("add", "WIP"));
+    if (!HaveActive())
+        throw runtime_error("There is no currently active poll.\n");
+
+    if (vIndex->current.poll->Option.size() > (POLL_OPTION_COUNT - 1))
+        throw runtime_error("Cannot have more than " + to_string(POLL_OPTION_COUNT) + " options. Use vote removeoption to remove one before adding another.\n");
+
+    if (param1 != "")
+    {
+        vIndex->current.poll->Option.push_back(param1);
+        vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
+        CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+    }
+
+    retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+    retObj.push_back(Pair("Name", vIndex->current.poll->Name));
+    retObj.push_back(Pair("Question", vIndex->current.poll->Question));
+
+    PrintOptions(retObj);
 
 }
 
@@ -554,7 +584,33 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote removeoption [option number] \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
 
-    retObj.push_back(Pair("add", "WIP"));
+    if (helpText != "")
+        return;
+
+    if (!HaveActive())
+        throw runtime_error("There is no currently active poll.\n");
+
+    if (!isNumber(param1) || stoi(param1) > vIndex->current.poll->OpCount || stoi(param1) < 1)
+        throw runtime_error("Number out of range or you did not enter an option number.\n");
+
+    CVotePoll holdPoll = *vIndex->current.poll;
+
+    vector<CPollOption>::iterator it = vIndex->current.poll->Option.begin();
+    it += (stoi(param1) - 1);
+
+    vIndex->current.poll->Option.erase(it);
+    vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
+    vIndex->current.ballot->OpSelection = 0;
+
+    CVoteDB(vIndex->strWalletFile).EraseVote(holdPoll);                 // Ugly but cheap overall.
+    CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
+    CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+
+    retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+    retObj.push_back(Pair("Name", vIndex->current.poll->Name));
+    retObj.push_back(Pair("Question", vIndex->current.poll->Question));
+
+    PrintOptions(retObj);
 
 }
 
@@ -572,7 +628,7 @@ void FundAddress(const Array& params, Object& retObj, string& helpText)
 
 }
 
-void BountyAddress(const Array& params, Object& retObj, string& helpText)
+void ClaimAddress(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
     if (params.size() > 1)
@@ -773,7 +829,7 @@ Value vote(const Array& params, bool fHelp)
 {
     string cHelpText = "";
     string helpText =("vote [command] [params]\n"
-                      "Use poll [command] help for command specific information.\n\n"
+                      "Use vote [command] help for command specific information.\n\n"
                       "Available Poll Commands:\n"
                       "Information:\n"
                       "|  ballotinfo\n"
@@ -797,7 +853,8 @@ Value vote(const Array& params, bool fHelp)
                       "|  addoption [option text]\n"
                       "|  removeoption [option number]\n"
                       "|  fundaddress [pink address]\n"
-                      "|  bountyaddress [pink address]\n"
+                      "|  claimaddress [pink address]\n"
+                      "|  claimpoll [pollID]\n"
                       "Navigation:\n"
                       "|  listactive [page number]\n"
                       "|  listcomplete [page number]\n"
@@ -853,7 +910,7 @@ Value vote(const Array& params, bool fHelp)
     else if (command == "fundaddress")
         FundAddress(params, retObj, cHelpText);
     else if (command == "bountyaddress")
-        BountyAddress(params, retObj, cHelpText);
+        ClaimAddress(params, retObj, cHelpText);
     else if (command == "listactive")
         ListActive(params, retObj, cHelpText);
     else if (command == "listcomplete")

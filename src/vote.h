@@ -18,6 +18,7 @@ const size_t POLL_ID_SIZE        = 4;
 const size_t POLL_NAME_SIZE      = 15;
 const size_t POLL_QUESTION_SIZE  = 100;
 const size_t POLL_OPTION_SIZE    = 45;
+const size_t POLL_OPTION_COUNT   = 6;
 
 typedef uint32_t CPollID;
 typedef string CPollName;
