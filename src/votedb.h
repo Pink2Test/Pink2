@@ -59,9 +59,9 @@ public:
         return activeTxn;
     }
     
-    bool WriteVote(const CVotePoll& votePoll, bool isLocal = false);
-    bool EraseVote(const CVotePoll& votePoll, bool isLocal = false);
-    bool ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool isLocal = false);
+    bool WriteVote(const CVotePoll& votePoll, bool isLocal = true);
+    bool EraseVote(const CVotePoll& votePoll, bool isLocal = true);
+    bool ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool isLocal = true);
 
     bool WriteBallot(const CVoteBallot& voteBallot);
     bool EraseBallot(const CVoteBallot& voteBallot);

@@ -13,7 +13,6 @@ namespace boost {
 
 extern CWallet* pwalletMain;
 extern CWallet* pstakeDB;
-extern CVoteDB* pvoteDB;
 extern CVote* vIndex;
 void StartShutdown();
 void Shutdown(void* parg);

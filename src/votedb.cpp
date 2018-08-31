@@ -19,7 +19,6 @@ using namespace boost;
 
 bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
 {
-    nVoteDBUpdated++;
     bool success = true;
 
     string Local = "";
@@ -75,13 +74,13 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
         if (!Write(make_pair(option[i], sPollID), vOption))
             success = false;
     }
-
+    nVoteDBUpdated++;
     return success;
 }
 
 bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
 {
-    nVoteDBUpdated++;
+
     bool success = false;
 
     string Local = "";
@@ -130,12 +129,14 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
             success = true;
     }
 
+    nVoteDBUpdated++;
+
     return success;
 }
 
 bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool isLocal)
 {
-    nVoteDBUpdated++;
+
     bool success = true;
     bool readAnything = false;
 
@@ -237,32 +238,32 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     if (readAnything && isLocal)
         success = true;
 
-
-
     return success;
 }
 
 bool CVoteDB::WriteBallot(const CVoteBallot& voteBallot)
 {
-    nVoteDBUpdated++;
+
     bool success = true;
 
     string sPollID = std::to_string(voteBallot.PollID);
     string sOpSelection = std::to_string(voteBallot.OpSelection);
     if (!Write(make_pair(string("ballotID"), sPollID), sOpSelection))
         success = false;
+
+    nVoteDBUpdated++;
     return success;
 }
 
 bool CVoteDB::EraseBallot(const CVoteBallot& voteBallot)
 {
-    nVoteDBUpdated++;
     bool success=true;
 
     string sPollID = std::to_string(voteBallot.PollID);
     if (!Erase(make_pair(string("ballotID"), sPollID)))
         success = false;
 
+    nVoteDBUpdated++;
     return success;
 }
 
@@ -629,8 +630,6 @@ void ThreadFlushVoteDB(void* parg)
 
                         bitdb.mapFileUseCount.erase(mi++);
                         printf("Flushed Vote.dat %" PRId64 "ms\n", GetTimeMillis() - nStart);
-
-                        bitdb.Open(strFile);
                     }
                 }
             }

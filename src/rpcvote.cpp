@@ -21,6 +21,32 @@ bool HaveActive()
     return false;
 }
 
+bool isNumber(const string& s)
+{
+    for (string::const_iterator i = s.begin(); i != s.end(); i++)
+    {
+        if (isdigit(*i))
+            return true;
+    }
+    return false;
+}
+
+void SetTime (string& setTime, CPollTime& pollTime)
+{
+    pollTime = GetPollTime(stol(setTime));
+
+    struct tm* timePoint;
+    char dT [30];
+
+    time_t sTime = (time_t)GetPollTime(pollTime);
+    timePoint = gmtime (&sTime);
+
+    strftime(dT, 30, "%X on %x UTC", timePoint);
+    string timeDay(dT);
+
+    setTime = timeDay;
+}
+
 void BallotInfo(const Array& params, Object& retObj, string& helpText)
 {      
     string param1 = "";
@@ -43,6 +69,34 @@ void BallotInfo(const Array& params, Object& retObj, string& helpText)
     }
 }
 
+void PrintFlags(Object& retObj)
+{
+    if (!HaveActive())
+        return;
+
+    Object retFlags;
+    if (vIndex->current.poll->Flags == CVote::POLL_ENFORCE_POS)
+        retFlags.push_back(Pair("ENFORCE_POS", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_POS)
+        retFlags.push_back(Pair("POS", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_FPOS)
+        retFlags.push_back(Pair("FPOS", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_POW)
+        retFlags.push_back(Pair("POW", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_D4L)
+        retFlags.push_back(Pair("D4L", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_VOTE_PER_ADDRESS)
+        retFlags.push_back(Pair("PER_ADDRESS", "enabled"));
+    if (vIndex->current.poll->Flags == CVote::POLL_FUNDRAISER)
+        retFlags.push_back(Pair("FUNDRAISER", "enabled"));
+    if (vIndex->current.poll->Flags == CVote::POLL_BOUNTY)
+        retFlags.push_back(Pair("BOUNTY", "enabled"));
+    if (vIndex->current.poll->Flags == CVote::POLL_CLAIM)
+        retFlags.push_back(Pair("CLAIM", "enabled"));
+
+    retObj.push_back(Pair("Flags", retFlags));
+}
+
 void GetPoll(Object& retObj)
 {
     if (vIndex->current.poll->ID != 0)
@@ -53,12 +107,18 @@ void GetPoll(Object& retObj)
             retObj.push_back(Pair("Poll Name", vIndex->current.poll->Name));
             retObj.push_back(Pair("Poll Question", vIndex->current.poll->Question));
 
-            int64_t pollStart = GetPollTime(vIndex->current.poll->Start);
-            int64_t pollEnd = GetPollTime(vIndex->current.poll->End);
+            string sPollStart = to_string(GetPollTime(vIndex->current.poll->Start));
+            string sPollEnd = to_string(GetPollTime(vIndex->current.poll->End));
+            CPollTime dummy;
 
-            retObj.push_back(Pair("Poll Start", to_string(pollStart)));
-            retObj.push_back(Pair("Poll End", to_string(pollEnd)));
+            SetTime(sPollStart, dummy);
+            SetTime(sPollEnd, dummy);
 
+            retObj.push_back(Pair("Poll Start", sPollStart));
+            retObj.push_back(Pair("Poll End", sPollEnd));
+
+            PrintFlags(retObj);
+/*
             Object retFlags;
             if (vIndex->current.poll->Flags == CVote::POLL_ENFORCE_POS)
                 retFlags.push_back(Pair("ENFORCE_POS", "enabled"));
@@ -80,7 +140,7 @@ void GetPoll(Object& retObj)
                 retFlags.push_back(Pair("CLAIM", "enabled"));
 
             retObj.push_back(Pair("Flags", retFlags));
-
+*/
             if (vIndex->current.poll->OpCount != (uint8_t)vIndex->current.poll->Option.size())
                 throw runtime_error("Number of options does not match opcount.");
 
@@ -212,8 +272,10 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
     vIndex->newPoll(newPoll, true);
     retObj.push_back(Pair("New PollID", to_string(vIndex->current.poll->ID)));
 
-    pvoteDB->WriteVote(*vIndex->current.poll, true);
-    pvoteDB->WriteBallot(*vIndex->current.ballot);
+    CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+    CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
+    //pvoteDB->WriteVote(*vIndex->current.poll, true);
+    //pvoteDB->WriteBallot(*vIndex->current.ballot);
 }
 
 void SetActive(const Array& params, Object& retObj, string& helpText)
@@ -266,14 +328,16 @@ void PollName(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
 
-    if (helpText == "" && param1.size() < 16)
+    if (helpText == "" && param1.size() <= POLL_NAME_SIZE)
     {
         vIndex->current.poll->Name = param1;
         retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
         retObj.push_back(Pair("Name", vIndex->current.poll->Name));
 
-        pvoteDB->WriteVote(*vIndex->current.poll, true);
-        pvoteDB->WriteBallot(*vIndex->current.ballot);
+        CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+        CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
+        //pvoteDB->WriteVote(*vIndex->current.poll, true);
+        //pvoteDB->WriteBallot(*vIndex->current.ballot);
     }
 
 }
@@ -288,7 +352,19 @@ void PollQuestion(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote pollquestion [question text] \n"
                             "Sets the question for the currently active poll.\n");
 
-    retObj.push_back(Pair("pollquestion", "WIP"));
+    if (!HaveActive())
+        throw runtime_error("There is no currently active poll.\n");
+
+    if (helpText == "" && param1.size() <= POLL_QUESTION_SIZE)
+    {
+        vIndex->current.poll->Question = param1;
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+        retObj.push_back(Pair("Question", vIndex->current.poll->Question));
+
+        CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+        //pvoteDB->WriteVote(*vIndex->current.poll, true);
+        //pvoteDB->WriteBallot(*vIndex->current.ballot);
+    }
 
 }
 
@@ -302,8 +378,18 @@ void PollStart(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote pollstart [unix timestamp] \n"
                             "Sets the start time for the currently active poll.\n");
 
-    retObj.push_back(Pair("pollstart", "WIP"));
+    if (!HaveActive())
+        throw runtime_error("There is no currently active poll.\n");
 
+    if (isNumber(param1) && stol(param1) > GetPollTime((CPollTime)0))
+    {
+        SetTime(param1, vIndex->current.poll->Start);           // Repurposing Param1 here to hold formatted Day & Time.
+
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+        retObj.push_back(Pair("Start", param1));
+
+        CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+    }
 }
 
 void PollEnd(const Array& params, Object& retObj, string& helpText)
@@ -316,8 +402,65 @@ void PollEnd(const Array& params, Object& retObj, string& helpText)
         helpText = ("vote pollend [unix timestamp] \n"
                             "Sets the end time for the currently active poll.\n");
 
-    retObj.push_back(Pair("pollend", "WIP"));
+    if (!HaveActive())
+        throw runtime_error("There is no currently active poll.\n");
 
+    if (isNumber(param1) && stol(param1) > GetPollTime((CPollTime)0))
+    {
+        SetTime(param1, vIndex->current.poll->End);           // Repurposing Param1 here to hold formatted Day & Time.
+
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+        retObj.push_back(Pair("End", param1));
+
+        CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
+    }
+
+}
+
+bool FlagSetter(const string& flag, CPollFlags& flags, const bool& set)
+{
+    bool fSet = false;
+
+    if (set)
+    {
+        if (flag == "ENFORCE_POS")      { flags = CVote::POLL_ENFORCE_POS; fSet = true; }
+        else if (flag == "POS")         { flags |= CVote::POLL_ALLOW_POS; fSet = true; }
+        else if (flag == "FPOS")        { flags |= CVote::POLL_ALLOW_FPOS; fSet = true; }
+        else if (flag == "POW")         { flags |= CVote::POLL_ALLOW_POW; fSet = true; }
+        else if (flag == "D4L")         { flags |= CVote::POLL_ALLOW_D4L; fSet = true; }
+        else if (flag == "PER_ADDRESS") { flags |= CVote::POLL_VOTE_PER_ADDRESS; fSet = true; }
+        else if (flag == "FUNDRAISER")  { flags = CVote::POLL_FUNDRAISER; fSet = true; }
+        else if (flag == "BOUNTY")      { flags = CVote::POLL_BOUNTY; fSet = true; }
+        else if (flag == "CLAIM")       { flags = CVote::POLL_CLAIM; fSet = true; }
+    } else {
+        if (flag == "ENFORCE_POS")      { flags |= CVote::POLL_ALLOW_POS; fSet = true; }
+        else if (flag == "POS")         { flags &= ~CVote::POLL_ALLOW_POS; fSet = true; }
+        else if (flag == "FPOS")        { flags &= ~CVote::POLL_ALLOW_FPOS; fSet = true; }
+        else if (flag == "POW")         { flags &= ~CVote::POLL_ALLOW_POW; fSet = true; }
+        else if (flag == "D4L")         { flags &= ~CVote::POLL_ALLOW_D4L; fSet = true; }
+        else if (flag == "PER_ADDRESS") { flags &= ~CVote::POLL_VOTE_PER_ADDRESS; fSet = true; }
+        else if (flag == "FUNDRAISER")  { flags &= ~CVote::POLL_FUNDRAISER; fSet = true; }
+        else if (flag == "BOUNTY")      { flags &= ~CVote::POLL_BOUNTY; fSet = true; }
+        else if (flag == "CLAIM")       { flags &= ~CVote::POLL_CLAIM; fSet = true; }
+    }
+
+    return fSet;
+
+
+}
+
+void resetOptions()
+{
+    vIndex->current.poll->Option.clear();
+    vIndex->current.poll->OpCount = 0;
+}
+
+void unsetForced()
+{
+    uint8_t CLAIM = (1U << 7);
+    vIndex->current.poll->Flags &= ~CVote::POLL_FUNDRAISER;
+    vIndex->current.poll->Flags &= ~CVote::POLL_BOUNTY;
+    vIndex->current.poll->Flags &= ~CLAIM; // clear just the CLAIM flag, leave POS/FPOS/POW if set.
 }
 
 void SetFlag(const Array& params, Object& retObj, string& helpText)
@@ -336,14 +479,24 @@ void SetFlag(const Array& params, Object& retObj, string& helpText)
                         "|  POW         - Accept POW Votes.\n"
                         "|  D4L         - Accept D4L Donation Votes.\n"
                         "|  PER_ADDRESS - Accept one vote per address.\n"
-                        "|  FUNDRAISER  - Designates Poll as Fundraiser. Resets all fields.\n"
-                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser. Resets all fields.\n"
+                        "|  FUNDRAISER  - Designates Poll as Fundraiser.\n"
+                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser.\n"
                         "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
-                        "|                  Force Sets appropriate flags and resets all fields.\n");
+                        "|                  Force Sets required voting block flags.\n");
 
 
-    retObj.push_back(Pair("setflag", "WIP"));
+    if (!HaveActive() || helpText != "")
+        return;
 
+    if (!FlagSetter(param1, vIndex->current.poll->Flags, true))
+        helpText = "Flag not found. Check 'vote setflag help' for available flags.\n";
+    else if (param1 == "FUNDRAISER" || param1 == "BOUNTY" || param1 == "CLAIM")
+        resetOptions();
+    else
+        unsetForced();
+
+    PrintFlags(retObj);
+    CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
 }
 
 void UnsetFlag(const Array& params, Object& retObj, string& helpText)
@@ -367,8 +520,14 @@ void UnsetFlag(const Array& params, Object& retObj, string& helpText)
                         "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
                         "|                  Force Sets appropriate flags and resets all fields.\n");
 
-    retObj.push_back(Pair("unsetflag", "WIP"));
+    if (!HaveActive() || helpText != "")
+        return;
 
+    if (!FlagSetter(param1, vIndex->current.poll->Flags, false))
+        helpText = "Flag not found. Check 'vote setflag help' for available flags.\n";
+
+    PrintFlags(retObj);
+    CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
 }
 
 void AddOption(const Array& params, Object& retObj, string& helpText)
@@ -377,7 +536,7 @@ void AddOption(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2)
+    if (param1 == "help" || param1.size() > POLL_OPTION_SIZE || params.size() > 2)
         helpText = ("vote addoption [option text] \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
 
@@ -529,14 +688,43 @@ void ListLocal(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nPage = stoi(param1);
+    int nPage = isNumber(param1) ? stoi(param1) : 0;
+    param1 = (bool)(param1 == "") ? "0" : param1;
+
     string checkSize = to_string(nPage);
 
     if (param1 != checkSize || params.size() > 2)
         helpText = ("vote listlocal [page number]\n"
                             "Lists the PollID's, Names, and Ending Times of all polls that you have saved locally off-chain.\n");
 
-    retObj.push_back(Pair("listlocal", "WIP"));
+    if (helpText != "") { return; }
+
+    CPollID counter = 0;
+    for (PollStack::iterator it = vIndex->pollStack.begin() ; it != vIndex->pollStack.end(); it++)
+    {
+        if (counter == 0)
+        {
+            if (nPage == 0) { nPage = 1; }
+            retObj.push_back(Pair("PollID", "Name"));
+        }
+
+        counter++;
+        int thisPage = (counter / 10) + 1;
+
+        if (thisPage == nPage)
+        {
+            CVotePoll p = it->second;
+
+            if (p.ID != 0)
+            {
+                retObj.push_back(Pair(to_string(p.ID), p.Name));
+            }
+        }
+    }
+
+    int allPages = bool(counter > 0) ? (counter/10) + 1 : 0;
+    string retPage = to_string(nPage) + " of " + to_string(allPages);
+    retObj.push_back(Pair("Page", retPage));
 }
 
 void RemovePoll(const Array& params, Object& retObj, string& helpText)
@@ -545,11 +733,40 @@ void RemovePoll(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 != "help" || params.size() > 2)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote remove <PollID> \n"
                             "Removes the poll matching PollID from your locally saved polls.\n");
 
-    retObj.push_back(Pair("removepoll", "WIP"));
+    if (helpText != "") { return; }
+
+    CPollID pollID = 0;
+    if (isNumber(param1))
+        pollID = stoul(param1);
+
+    PollStack::iterator it = vIndex->pollStack.find(pollID);
+
+    bool success = false;
+
+    if (it != vIndex->pollStack.end() && it->first != 0)
+    {
+
+        CVoteDB voteDB(vIndex->strWalletFile);
+
+        success = voteDB.EraseVote(it->second);
+
+        if (vIndex->ballotStack.find(pollID) != vIndex->ballotStack.end())
+            voteDB.EraseBallot(vIndex->ballotStack.at(pollID));
+
+        if (vIndex->current.poll->ID == it->first)
+            vIndex->current.setActive(vIndex->current.pIt, vIndex->current.bIt, ActivePoll::SET_CLEAR);
+        vIndex->pollStack.erase(it);
+        //pvoteDB->EraseVote(it->second);
+        //pvoteDB->EraseBallot(vIndex->ballotStack.at(it->first));
+    }
+
+    string isSuccess = success ? "true" : "false";
+    retObj.push_back(Pair("PollID", to_string(pollID)));
+    retObj.push_back(Pair("Removed", isSuccess));
 }
 
 Value vote(const Array& params, bool fHelp)

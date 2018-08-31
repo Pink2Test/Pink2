@@ -127,7 +127,7 @@ public:
         POLL_ALLOW_POW          = (1U << 2),   // Allow POW Votes
         POLL_ALLOW_D4L          = (1U << 3),   // Allow Votes with D4L Donations - Minimum Donation 10 PINK.
         POLL_VOTE_PER_ADDRESS   = (1U << 4),   // Only accept 1 vote per address.
-        POll_FUNDRAISER         = (1U << 5),   // Fundraiser poll. Reset poll fields, treat as Fundraiser.
+        POLL_FUNDRAISER         = (1U << 5),   // Fundraiser poll. Reset poll fields, treat as Fundraiser.
         POLL_BOUNTY             = (1U << 6),   // Bounty poll. Reset poll fields, treat as Bounty.
         POLL_CLAIM              = (1U << 7)       |  // Bounty/Fundraiser claim poll. Force sets POS, FPOS, and POW.
                                   POLL_ALLOW_POS  |
@@ -151,7 +151,8 @@ public:
 };
 
 
-int64_t GetPollTime(CPollTime& pTime, int& blockHeight = pindexBest->nHeight);
+int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight = pindexBest->nHeight);
+CPollTime GetPollTime(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
 

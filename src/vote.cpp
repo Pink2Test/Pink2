@@ -293,33 +293,58 @@ CVotePoll CVote::getActivePoll()
     return *activePoll;
 }
 
-int64_t GetPollTime(CPollTime &pTime, int &blockHeight)
+int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight)
 {
-
+    int bHeight = blockHeight;
     /* If we're within 10k blocks of our 4 BLOCKCOUNT years cutoff,
      * interpret the time based on pTime value restrictions.
      * This is important since we can't be sure when the poll will
      * first be accepted into a block when it is created and submitted
      * to the mempool. 10k blocks gives about a week of padding.     */
-    if (blockHeight - 10000 < (YEARLY_BLOCKCOUNT * 4) && blockHeight + 10000 > (YEARLY_BLOCKCOUNT * 4))
+    if (bHeight - 10000 < (YEARLY_BLOCKCOUNT * 4) && bHeight + 10000 > (YEARLY_BLOCKCOUNT * 4))
     {
         if(pTime <= 2400) // 100 days past baseTime.
-            blockHeight = blockHeight + 10000;   // pTime is set too far behind to be pre-YB*4 at this blockheight.
+            bHeight = bHeight + 10000;   // pTime is set too far behind to be pre-YB*4 at this blockheight.
         else
-            blockHeight = blockHeight - 10000;   // pTime is set too far ahead to be post-YB*4 at this blockheight.
+            bHeight = bHeight - 10000;   // pTime is set too far ahead to be post-YB*4 at this blockheight.
     }
 
 
     /* Reset PollTime every 4 BLOCKCOUNT years.
      * CPollTime is incremented every hour since the first hour
      * after GenesisBlock So it can contain 7 1/2 years of time. */
-    int baseClock = blockHeight / (YEARLY_BLOCKCOUNT * 4);
+    int baseClock = bHeight / (YEARLY_BLOCKCOUNT * 4);
     int baseHeight = baseClock * (YEARLY_BLOCKCOUNT * 4);
 
     CBlockIndex *tIndex = FindBlockByHeight(baseHeight);
 
     int64_t baseTime = tIndex->nTime / 60 / 60;
     int64_t pollTime = (baseTime + (int64_t)pTime) * 60 * 60;
+
+    return pollTime;
+}
+
+CPollTime GetPollTime(const int64_t &uTime, const int &blockHeight)
+{
+
+    int bHeight = blockHeight;
+
+    /* Reset PollTime every 4 BLOCKCOUNT years.
+     * CPollTime is incremented every hour since the first hour
+     * after GenesisBlock So it can contain 7 1/2 years of time. */
+    int baseClock = bHeight / (YEARLY_BLOCKCOUNT * 4);
+    bHeight = baseClock * (YEARLY_BLOCKCOUNT * 4);
+
+    CBlockIndex *tIndex = FindBlockByHeight(bHeight);
+    int64_t baseTime = tIndex->nTime / 60 / 60;
+    int64_t pTime = uTime / 60 / 60;
+    pTime = pTime - baseTime;
+
+    CPollTime pollTime;
+    if (pTime > 0)
+        pollTime = pTime;
+    else
+        pollTime = 0;
 
     return pollTime;
 }

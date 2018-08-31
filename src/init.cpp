@@ -937,7 +937,6 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     VDBErrors nLoadVoteDBRet = vIndex->LoadVoteDB(fFirstVote);
 
-    pvoteDB = new CVoteDB(strVoteDBFileName);
     if (nLoadVoteDBRet != VDB_LOAD_OK)
     {
         if (nLoadVoteDBRet == VDB_CORRUPT)
