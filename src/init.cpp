@@ -436,7 +436,7 @@ bool AppInit2(boost::thread_group& threadGroup)
 
     nDerivationMethodIndex = 0;
 
-    fTestNet = GetBoolArg("-testnet");
+    fTestNet = GetBoolArg("-testnet", forceTestnet);
 
     if (mapArgs.count("-bind")) {
         // when specifying an explicit binding address, you want to listen on it

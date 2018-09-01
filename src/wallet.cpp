@@ -2480,7 +2480,7 @@ bool CWallet::GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, ui
     return true;
 }
 
-bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, int64_t nFees, CTransaction& txNew, CKey& key)
+bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, int64_t nFees, int64_t nPoolFees, CTransaction& txNew, CKey& key)
 {
     CBlockIndex* pindexPrev = pindexBest;
     CBigNum bnTargetPerCoinDay;
@@ -2616,7 +2616,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 				CTxDB txdb("r");
 				if (txNew.GetCoinAge(txdb, nCoinAge))
 				{
-                    int64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, pindexBest->nHeight + 1, txNew.nTime);
+                    int64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, nPoolFees, pindexBest->nHeight + 1, txNew.nTime);
                     if (nTotalSize > nSplitThreshold * COIN)
 						txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 				}
@@ -2678,11 +2678,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         if (!txNew.GetCoinAge(txdb, nCoinAge))
             return error("CreateCoinStake : failed to calculate coin age");
 
-        nReward = GetProofOfStakeReward(nCoinAge, nFees, pindexBest->nHeight + 1, txNew.nTime);
+        nReward = GetProofOfStakeReward(nCoinAge, nFees, nPoolFees, pindexBest->nHeight + 1, txNew.nTime);
         if (nReward <= 0 && pindexBest->nHeight > 16240)
             return false;
-
-
     }
 
     int64_t stakeOutCount = CountStakeOut();

@@ -1980,6 +1980,11 @@ bool CScript::IsPayToScriptHash() const
             this->at(22) == OP_EQUAL);
 }
 
+bool CScript::IsVotePoll() const
+{
+    return (this->at(0) == OP_VOTE); // only Polls begin their scriptsig with OP_VOTE;
+}
+
 bool CScript::HasCanonicalPushes() const
 {
     const_iterator pc = begin();

@@ -217,6 +217,8 @@ bool CVote::getPoll(CPollID& pollID, CVotePoll* poll)
     // Save our current ballot and poll
     // saveActive();
 
+    poll->OpCount = (COptionID)poll->Option.size(); // Do something harmless with poll to get rid of the compiler warning.
+
     if (pollStack.find(pollID) != pollStack.end())
     {
         poll = &pollStack.at(pollID);

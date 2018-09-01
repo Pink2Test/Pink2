@@ -286,7 +286,7 @@ bool CheckStakeKernelHash(unsigned int nBits, const CBlock& blockFrom, unsigned 
 
 
     // FlashPOS 2.0 Begin
-    const unsigned int btFlash2 = fTestNet ? 1534208400 : 1538265600; // September 30th, 2018 @ 12:00am UTC MainNet, August 14th, 2018 @ 1:00am UTC TestNet
+    const time_t btFlash2 = fTestNet ? 1534208400 : FPOS2_START_DATE; // September 30th, 2018 @ 12:00am UTC MainNet, August 14th, 2018 @ 1:00am UTC TestNet
     const unsigned int minFlash2 = 100000; // Minimum coin requirement to stake during FPOS
 
 
