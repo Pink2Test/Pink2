@@ -327,7 +327,7 @@ bool CTransaction::ReadFromDisk(COutPoint prevout)
 
 bool CTransaction::IsStandard() const
 {
-    if (nVersion > CTransaction::CURRENT_VERSION)
+    if (nVersion > CTransaction::CURRENT_VERSION && !fTestNet)
         return false;
 
     BOOST_FOREACH(const CTxIn& txin, vin)

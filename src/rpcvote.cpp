@@ -283,6 +283,8 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
     CVotePoll *newPoll = new CVotePoll();
     newPoll->clear();
     vIndex->newPoll(newPoll, true);
+    vIndex->setPoll(vIndex->current.poll->ID);  // should get set properly in newPoll but doesn't. Debug later.
+
     retObj.push_back(Pair("New PollID", to_string(vIndex->current.poll->ID)));
 
     CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
