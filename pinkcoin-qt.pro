@@ -277,6 +277,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/txdb.h \
     src/walletdb.h \
     src/stakedb.h \
+    src/votedb.h \
     src/script.h \
     src/stealth.h \
     src/init.h \
@@ -300,6 +301,7 @@ HEADERS += src/qt/bitcoingui.h \
     src/qt/transactiondescdialog.h \
     src/qt/bitcoinamountfield.h \
     src/wallet.h \
+    src/vote.h \
     src/keystore.h \
     src/qt/transactionfilterproxy.h \
     src/qt/transactionview.h \
@@ -360,6 +362,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/db.cpp \
     src/walletdb.cpp \
     src/stakedb.cpp \
+    src/votedb.cpp \
     src/qt/clientmodel.cpp \
     src/qt/guiutil.cpp \
     src/qt/transactionrecord.cpp \
@@ -379,6 +382,7 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/rpcnet.cpp \
     src/rpcmining.cpp \
     src/rpcwallet.cpp \
+    src/rpcvote.cpp \
     src/rpcblockchain.cpp \
     src/rpcrawtransaction.cpp \
     src/rpcsmessage.cpp \
@@ -408,7 +412,8 @@ SOURCES += src/qt/bitcoin.cpp src/qt/bitcoingui.cpp \
     src/scrypt-x86_64.S \
     src/scrypt.cpp \
     src/pbkdf2.cpp \
-    src/stealth.cpp
+    src/stealth.cpp \
+    src/vote.cpp
 
 RESOURCES += \
     src/qt/bitcoin.qrc 

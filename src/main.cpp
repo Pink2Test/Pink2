@@ -76,6 +76,10 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
+// POS Voting:
+CScript VOTE_CASTING;
+CScript VOTE_BALLOT;
+
 const string strMessageMagic = "Pinkcoin Signed Message:\n";
 
 // Settings
@@ -105,6 +109,22 @@ void RegisterWallet(CWallet* pwalletIn)
 }
 
 void UnregisterWallet(CWallet* pwalletIn)
+{
+    {
+        LOCK(cs_setpwalletRegistered);
+        setpwalletRegistered.erase(pwalletIn);
+    }
+}
+
+void RegisterWallet(CVote* pwalletIn)
+{
+    {
+        LOCK(cs_setpwalletRegistered);
+        setpwalletRegistered.insert(pwalletIn);
+    }
+}
+
+void UnregisterWallet(CVote* pwalletIn)
 {
     {
         LOCK(cs_setpwalletRegistered);
@@ -307,12 +327,11 @@ bool CTransaction::ReadFromDisk(COutPoint prevout)
 
 bool CTransaction::IsStandard() const
 {
-
     // Accept CURRENT_VERSION +1 Transactions.
     if (nVersion > CTransaction::CURRENT_VERSION && nTime < 1538265600)
         return false;
 
-    if (nVersion > CTransaction::CURRENT_VERSION + 1)
+    if (nVersion > CTransaction::CURRENT_VERSION + 1
         return false;
 
     BOOST_FOREACH(const CTxIn& txin, vin)
@@ -984,7 +1003,7 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan)
 }
 
 // miner's coin base reward
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
+int64_t GetProofOfWorkReward(int nHeight, int64_t nFees, int64_t nFeeFromPool)
 {
     int64_t nSubsidy = 0;
     int64_t nHalving = 0;
@@ -1001,11 +1020,11 @@ int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfWorkReward() : create=%s nSubsidy=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nSubsidy);
 
-    return nSubsidy + nFees;
+    return nSubsidy + nFees + nFeeFromPool;
 }
 
 // miner's coin stake reward based on coin age spent (coin-days)
-int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int nHeight, unsigned int nTime)
+int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int64_t nFeeFromPool, int nHeight, unsigned int nTime)
 {
     int64_t nSubsidy = 0;
     int64_t nHalving = 0;
@@ -1025,7 +1044,7 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int nHeight, unsi
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nCoinAge);
 
-    return nSubsidy + nFees;
+    return nSubsidy + nFees + nFeeFromPool;
 }
 
 static const int64_t nTargetTimespan = 60 * 60;  // 60 mins
@@ -1616,6 +1635,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     map<uint256, CTxIndex> mapQueuedChanges;
     int64_t nFees = 0;
+    int64_t nPoolFees = 0;
     int64_t nValueIn = 0;
     int64_t nValueOut = 0;
     int64_t nStakeReward = 0;
@@ -1671,6 +1691,19 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             int64_t nTxValueOut = tx.GetValueOut();
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
+            if (tx.IsVotePoll())
+            {
+                if(pindex->pprev->nTime < VOTE_START_DATE && !fTestNet)
+                    return DoS(100, error("ConnectBlock() : Voting system not yet available on MainNet."));
+
+                if((nTxValueIn - nTxValueOut) < VOTE_FEE)
+                    return DoS(100, error("ConnectBlock() : Voting fee not paid."));
+
+                nTxValueIn -= VOTE_FEE;
+                nValueIn -= VOTE_FEE;
+                nPoolFees += VOTE_FEE;
+            }
+
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
             if (tx.IsCoinStake())
@@ -1683,9 +1716,11 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
+    int64_t nFeeFromPool = ((pindex->pprev->nFeePool + nPoolFees) / 100000);
+
     if (IsProofOfWork())
     {
-        int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees);
+        int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees, nFeeFromPool);
         // Check coinbase reward
         if (vtx[0].GetValueOut() > nReward)
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
@@ -1699,15 +1734,20 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         if (!vtx[1].GetCoinAge(txdb, nCoinAge))
             return error("ConnectBlock() : %s unable to get coin age for coinstake", vtx[1].GetHash().ToString().substr(0,10).c_str());
 
-        int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees, pindex->nHeight, pindex->nTime);
+        int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees, nFeeFromPool, pindex->nHeight, pindex->nTime);
 
         if (nStakeReward > nCalculatedStakeReward)
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64 " vs calculated=%" PRId64 ")", nStakeReward, nCalculatedStakeReward));
     }
 
-    // ppcoin: track money supply and mint amount info
-    pindex->nMint = nValueOut - nValueIn + nFees;
+    // ppcoin: track money supply, mint amount, and feepool info
+    pindex->nMint = nValueOut - nValueIn + nFees + nFeeFromPool;
+    pindex->nFeePool = (pindex->pprev? pindex->pprev->nFeePool : 0) + nPoolFees - nFeeFromPool;
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
+
+    if(pindex->pprev->nTime >= VOTE_START_DATE || fTestNet)
+        pindex->nFlags |= CBlockIndex::BLOCK_FEE_POOL;
+
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
         return error("Connect() : WriteBlockIndex for pindex failed");
 
@@ -2470,7 +2510,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 }
 
 // novacoin: attempt to generate suitable proof-of-stake
-bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
+bool CBlock::SignBlock(CWallet& wallet, int64_t nFees, int64_t nPoolFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -2490,7 +2530,7 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
 
     if (nSearchTime > nLastCoinStakeSearchTime)
     {
-        if (wallet.CreateCoinStake(wallet, nBits, nSearchTime-nLastCoinStakeSearchTime, nFees, txCoinStake, key))
+        if (wallet.CreateCoinStake(wallet, nBits, nSearchTime-nLastCoinStakeSearchTime, nFees, nPoolFees, txCoinStake, key))
         {
             if (txCoinStake.nTime >= max(pindexBest->GetPastTimeLimit()+1, PastDrift(pindexBest->GetBlockTime())))
             {

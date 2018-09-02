@@ -23,14 +23,22 @@ class COutPoint;
 class CTxIndex;
 class CWallet;
 class CWalletTx;
+class CVote;
+
+struct CVotePoll;
+struct CVoteBallot;
 
 extern unsigned int nWalletDBUpdated;
 extern unsigned int nStakeDBUpdated;
+extern unsigned int nVoteDBUpdated;
 
 void ThreadFlushWalletDB(void* parg);
 void ThreadFlushStakeDB(void* parg);
+void ThreadFlushVoteDB(void* parg);
 bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 bool BackupStakeDB(const CWallet& stakeDB, const std::string& strDest);
+bool BackupVoteDB(const CWallet& voteDB, const std::string& strDest);
+
 
 class CDBEnv
 {
