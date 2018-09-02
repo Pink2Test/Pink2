@@ -209,6 +209,7 @@ inline int OutputDebugStringF(const char* pszFormat, ...)
         va_start(arg_ptr, pszFormat);
         ret = vprintf(pszFormat, arg_ptr);
         va_end(arg_ptr);
+        fflush(stdout);
     }
     else if (!fPrintToDebugger)
     {
@@ -1060,6 +1061,12 @@ boost::filesystem::path GetConfigFile()
         pathConfigFile = pathConfigFile2;
     }
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
+
+    if (!boost::filesystem::exists(pathConfigFile))
+    {
+        boost::filesystem::path pathConfigFile2("pinkcoin.conf");
+        pathConfigFile = GetDataDir(false) / pathConfigFile2;
+    }
     return pathConfigFile;
 }
 

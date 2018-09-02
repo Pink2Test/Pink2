@@ -549,9 +549,10 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (strStakeDBFileName != boost::filesystem::basename(strStakeDBFileName) + boost::filesystem::extension(strStakeDBFileName))
         return InitError(strprintf(_("DB %s resides outside data directory %s."), strStakeDBFileName.c_str(), strDataDir.c_str()));
 
-    // strStakeDBFileName must be a plain filename without a directory
+    // strVoteDBFileName must be a plain filename without a directory
     if (strVoteDBFileName != boost::filesystem::basename(strVoteDBFileName) + boost::filesystem::extension(strVoteDBFileName))
         return InitError(strprintf(_("DB %s resides outside data directory %s."), strVoteDBFileName.c_str(), strDataDir.c_str()));
+
 
     // Make sure only a single Bitcoin process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
@@ -766,42 +767,19 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (nSplitThreshold == 200000 && nCombineThreshold == 100000)
         targetFPOS = true;
 
-    if ((mapArgs.count("-splitthreshold") || mapArgs.count("-combinethreshold")) && !targetFPOS)
+
+    int64_t valSplitThreshold;
+    int64_t valCombineThreshold;
+
+    valSplitThreshold = GetArg("-splitthreshold", nSplitThreshold);
+    valCombineThreshold = GetArg("-combinethreshold", nCombineThreshold);
+
+    if (valSplitThreshold >= valCombineThreshold && !targetFPOS)
     {
-        int64_t valSplitThreshold;
-        int64_t valCombineThreshold;
-        if (mapArgs.count("-splitthreshold")) // split stake inputs greater than this amount.
-        {
-            if (!ParseMoney(mapArgs["-splitthreshold"], valSplitThreshold))
-            {
-                InitError(_("Invalid amount for -splitthreshold=<amount>"));
-                return false;
-            }
-        valSplitThreshold = valSplitThreshold / COIN;
-        } else {
-            valSplitThreshold = nSplitThreshold;
-        }
-
-        if (mapArgs.count("-combinethreshold")) // combine stake inputs up to this amount.
-        {
-
-            if (!ParseMoney(mapArgs["-combinethreshold"], valCombineThreshold))
-            {
-                InitError(_("Invalid amount for -combinethreshold=<amount>"));
-                return false;
-            }
-            valCombineThreshold = valCombineThreshold / COIN;
-        } else {
-            valCombineThreshold = nCombineThreshold;
-        }
-
-        if (valSplitThreshold >= valCombineThreshold * 2)
-        {
             nSplitThreshold = valSplitThreshold;
             nCombineThreshold = valCombineThreshold;
-        } else {
-            InitError(_("Split threshold must be at least double the combine threshold; Combined threshold must be half the split threshold or less."));
-        }
+    } else {
+            InitError(_("Split threshold must be more than the combine threshold; Combined threshold must be half the split threshold or less."));
     }
 
     if (mapArgs.count("-checkpointkey")) // ppcoin: checkpoint master priv key

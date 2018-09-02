@@ -1757,7 +1757,7 @@ Value combinethreshold(const Array& params, bool fHelp)
            int64_t nAmount = params[0].get_int64();
            if (nAmount < 100)
                throw runtime_error("Cannot set combine threshold lower than 100 coins.\n");
-           if (nAmount > nSplitThreshold / 2)
+           if (nAmount >= nSplitThreshold)
                throw runtime_error("Combine threshold must be half the combined threshold or less.\n");
            nCombineThreshold = nAmount;
         }
@@ -1785,9 +1785,9 @@ Value splitthreshold(const Array& params, bool fHelp)
         {
            int64_t nAmount = params[0].get_int64();
            if (nAmount > 1000000)
-               throw runtime_error("Cannot set combine threshold higher than 1000000 coins.\n");
-           if (nAmount < nCombineThreshold * 2)
-               throw runtime_error("Split threshold must be at least double the combined threshold.\n");
+               throw runtime_error("Cannot set split threshold higher than 1000000 coins.\n");
+           if (nAmount <= nCombineThreshold)
+               throw runtime_error("Split threshold must be more than combined threshold.\n");
            nSplitThreshold = nAmount;
         }
     }

@@ -7,6 +7,7 @@
 
 #include "wallet.h"
 #include "vote.h"
+
 namespace boost {
     class thread_group;
 } // namespace boost

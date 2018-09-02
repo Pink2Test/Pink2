@@ -39,6 +39,7 @@ bool BackupWallet(const CWallet& wallet, const std::string& strDest);
 bool BackupStakeDB(const CWallet& stakeDB, const std::string& strDest);
 bool BackupVoteDB(const CWallet& voteDB, const std::string& strDest);
 
+
 class CDBEnv
 {
 private:

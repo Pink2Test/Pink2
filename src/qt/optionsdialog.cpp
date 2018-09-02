@@ -102,9 +102,10 @@ OptionsDialog::~OptionsDialog()
     delete ui;
 }
 
-void OptionsDialog::setModel(OptionsModel *model)
+void OptionsDialog::setModel(OptionsModel *model, OptionsDialog *dlg)
 {
     this->model = model;
+    this->model->dlg = dlg;
 
     if(model)
     {
@@ -265,6 +266,16 @@ void OptionsDialog::handleProxyIpValid(QValidatedLineEdit *object, bool fState)
         ui->statusLabel->setStyleSheet("QLabel { color: red; }");
         ui->statusLabel->setText(tr("The supplied proxy address is invalid."));
     }
+}
+
+
+qint64 OptionsDialog::getUiCombineThreshold()
+{
+    return ui->combineThreshold->text().toLongLong();
+}
+qint64 OptionsDialog::getUiSplitThreshold()
+{
+    return ui->splitThreshold->text().toLongLong();
 }
 
 bool OptionsDialog::eventFilter(QObject *object, QEvent *event)

@@ -434,6 +434,9 @@ typedef std::map<uint256, std::pair<CTxIndex, CTransaction> > MapPrevTx;
 class CTransaction
 {
 public:
+    // As of v2.2 we will allow CURRENT_VERSION+1 for transactions.
+    // Increment +1 if restricting consensus (Soft Fork) +2 if expanding consensus (Hard Fork)
+    // This way old clients will accept new version tx's, even if they can't create them.
     static const int CURRENT_VERSION=1;
     int nVersion;
     unsigned int nTime;
@@ -850,6 +853,8 @@ class CBlock
 {
 public:
     // header
+    // Increment CURRENT_VERSION+1 for Soft Forks and +2 for Hard Forks.
+    // Old clients will accept CURRENT_VERSON+1 blocks, but not +2.
     static const int CURRENT_VERSION=1;
     int nVersion;
     uint256 hashPrevBlock;

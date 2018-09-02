@@ -1,6 +1,7 @@
 #ifndef OPTIONSMODEL_H
 #define OPTIONSMODEL_H
 
+#include "optionsdialog.h"
 #include <QAbstractListModel>
 
 /** Interface from Qt to configuration data structure for Bitcoin client.
@@ -56,6 +57,8 @@ public:
     qint64 getCombineThreshold();
     qint64 getSplitThreshold();
     QString getLanguage() { return language; }
+
+    OptionsDialog *dlg;
 
 private:
     int nDisplayUnit;
