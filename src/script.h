@@ -186,7 +186,7 @@ enum opcodetype
     OP_CHECKMULTISIGVERIFY = 0xaf,
 
     // expansion
-    OP_NOP1 = 0xb0,
+    OP_VOTE = 0xb0,
     OP_NOP2 = 0xb1,
     OP_NOP3 = 0xb2,
     OP_NOP4 = 0xb3,
@@ -530,6 +530,8 @@ public:
     unsigned int GetSigOpCount(const CScript& scriptSig) const;
 
     bool IsPayToScriptHash() const;
+
+    bool IsVotePoll() const;
 
     // Called by CTransaction::IsStandard and P2SH VerifyScript (which makes it consensus-critical).
     bool IsPushOnly() const
