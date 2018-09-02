@@ -331,7 +331,7 @@ bool CTransaction::IsStandard() const
     if (nVersion > CTransaction::CURRENT_VERSION && nTime < 1538265600)
         return false;
 
-    if (nVersion > CTransaction::CURRENT_VERSION + 1
+    if (nVersion > CTransaction::CURRENT_VERSION + 1)
         return false;
 
     BOOST_FOREACH(const CTxIn& txin, vin)
