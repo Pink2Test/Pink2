@@ -1747,7 +1747,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     pindex->nFeePool = (pindex->pprev? pindex->pprev->nFeePool : 0) + nPoolFees - nFeeFromPool;
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
-    if(pindex->pprev->nTime >= VOTE_START_DATE || (fTestnet && pindex->pprev->nTime >= 1534208400))
+    if(pindex->pprev->nTime >= VOTE_START_DATE || (fTestNet && pindex->pprev->nTime >= 1534208400)
         pindex->nFlags |= CBlockIndex::BLOCK_FEE_POOL;
 
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
