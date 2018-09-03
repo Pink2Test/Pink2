@@ -543,14 +543,11 @@ public:
 
     bool IsVotePoll() const
     {
-        printf("\nWDEBUG: IsVotePoll [function start]");
         if (vout.size() > 0 && vout[0].scriptPubKey.size() > 0)
         {
             CScript checkVote = vout[0].scriptPubKey;
-            printf("\nWDEBUG: IsVotePoll [function return IsVotePoll]");
             return (checkVote.IsVotePoll());
         }
-        printf("\nWDEBUG: IsVotePoll [function false]");
         return false;
     }
 
@@ -1384,6 +1381,7 @@ public:
         hashPrev = 0;
         hashNext = 0;
         blockHash = 0;
+        nFeePool = 0;
     }
 
     explicit CDiskBlockIndex(CBlockIndex* pindex) : CBlockIndex(*pindex)
@@ -1426,7 +1424,6 @@ public:
         READWRITE(nNonce);
         READWRITE(blockHash);
 
-        printf("\nWDEBUG: HaveFeePool?\n\n");
         // fee pool
         if (HaveFeePool())
             READWRITE(nFeePool);

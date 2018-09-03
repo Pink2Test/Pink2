@@ -1692,7 +1692,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
 
-            printf("\nWDEBUG: IsVotePoll?\n\n");
             if (tx.IsVotePoll())
             {
 
@@ -1702,7 +1701,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 if((nTxValueIn - nTxValueOut) < VOTE_FEE)
                     return DoS(100, error("ConnectBlock() : Voting fee not paid."));
 
-                printf("\nWDEBUG: VOTEPOLL\n");
                 nTxValueIn -= VOTE_FEE;
                 nValueIn -= VOTE_FEE;
                 nPoolFees += VOTE_FEE;
@@ -1744,14 +1742,12 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64 " vs calculated=%" PRId64 ")", nStakeReward, nCalculatedStakeReward));
     }
 
-    printf("\nWDEBUG: FeePool Tracker\n\n");
     // ppcoin: track money supply, mint amount, and feepool info
     pindex->nMint = nValueOut - nValueIn + nFees + nFeeFromPool;
     pindex->nFeePool = (pindex->pprev? pindex->pprev->nFeePool : 0) + nPoolFees - nFeeFromPool;
     pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
 
-    printf("\nWDEBUG: Set BLOCK FEE POOL\n\n");
-    if(pindex->pprev->nTime >= VOTE_START_DATE || pindex->pprev->nTime >= 1534208400)
+    if(pindex->pprev->nTime >= VOTE_START_DATE || (fTestnet && pindex->pprev->nTime >= 1534208400))
         pindex->nFlags |= CBlockIndex::BLOCK_FEE_POOL;
 
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))

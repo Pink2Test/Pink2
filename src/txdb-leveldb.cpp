@@ -370,7 +370,6 @@ bool CTxDB::LoadBlockIndex()
         pindexNew->nBits          = diskindex.nBits;
         pindexNew->nNonce         = diskindex.nNonce;
 
-        printf("\nWDEBUG: Loading Block index FEE POOL");
         if (pindexNew->nFlags & CBlockIndex::BLOCK_FEE_POOL)
             pindexNew->nFeePool       = diskindex.nFeePool;
 
