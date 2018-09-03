@@ -543,12 +543,14 @@ public:
 
     bool IsVotePoll() const
     {
+        printf("\nWDEBUG: IsVotePoll [function start]");
         if (vout.size() > 0 && vout[0].scriptPubKey.size() > 0)
         {
             CScript checkVote = vout[0].scriptPubKey;
+            printf("\nWDEBUG: IsVotePoll [function return IsVotePoll]");
             return (checkVote.IsVotePoll());
         }
-
+        printf("\nWDEBUG: IsVotePoll [function false]");
         return false;
     }
 
@@ -1347,6 +1349,7 @@ public:
 
     std::string ToString() const
     {
+        printf("\nWDEBUG: Trying to print CBlockIndex\n\n");
         return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%-6d nHeight=%d, nMint=%s, nMoneySupply=%s, nFeePool=%s nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64", hashProof=%s, prevoutStake=(%s), nStakeTime=%d merkle=%s, hashBlock=%s)",
             pprev, pnext, nFile, nBlockPos, nHeight,
             FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(), FormatMoney(nFeePool).c_str(),
@@ -1423,6 +1426,7 @@ public:
         READWRITE(nNonce);
         READWRITE(blockHash);
 
+        printf("\nWDEBUG: HaveFeePool?\n\n");
         // fee pool
         if (HaveFeePool())
             READWRITE(nFeePool);

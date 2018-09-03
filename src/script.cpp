@@ -1308,6 +1308,11 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN));
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN << OP_SMALLDATA));
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN << OP_SMALLDATA << OP_RETURN << OP_SMALLDATA));
+
+        // Voting Templates
+        mTemplates.insert((make_pair(TX_PUBKEY, CScript() << OP_VOTE << OP_LARGEDATA)));
+        mTemplates.insert((make_pair(TX_PUBKEYHASH, CScript() << OP_VOTE << OP_LARGEDATA)));
+        mTemplates.insert((make_pair(TX_MULTISIG, CScript() << OP_VOTE << OP_LARGEDATA)));
     }
 
     // Shortcut for pay-to-script-hash, which are more constrained than the other types:
