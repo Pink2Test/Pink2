@@ -1545,6 +1545,8 @@ void ThreadOpenConnections2(void* parg)
         int nTries = 0;
         while (true)
         {
+            MilliSleep(10); // Throttle our tries to 100/sec.
+
             // use an nUnkBias between 10 (no outgoing connections) and 90 (8 outgoing connections)
             CAddress addr = addrman.Select(10 + min(nOutbound,8)*10);
 
@@ -1564,6 +1566,10 @@ void ThreadOpenConnections2(void* parg)
 
             // only consider very recently tried nodes after 30 failed attempts
             if (nANow - addr.nLastTry < 600 && nTries < 30)
+                continue;
+
+            // After 3 failed attempts, start trying every 20 seconds.
+            if (nANow - addr.nLastTry > 20 && nTries < 3)
                 continue;
 
             // do not allow non-default ports, unless after 50 invalid addresses selected already
