@@ -1055,11 +1055,6 @@ const boost::filesystem::path &GetDataDir(bool fNetSpecific)
 boost::filesystem::path GetConfigFile()
 {
     boost::filesystem::path pathConfigFile(GetArg("-conf", "pinkconf.txt"));
-    if (!boost::filesystem::exists(pathConfigFile))
-    {
-        boost::filesystem::path pathConfigFile2("pinkcoin.conf");  // accept classic .conf files.
-        pathConfigFile = pathConfigFile2;
-    }
     if (!pathConfigFile.is_complete()) pathConfigFile = GetDataDir(false) / pathConfigFile;
 
     if (!boost::filesystem::exists(pathConfigFile))
