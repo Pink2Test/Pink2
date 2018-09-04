@@ -34,6 +34,8 @@ typedef union { unsigned char key[2]; uint16_t n; } CPollTimeByte;
 typedef union { unsigned char key[1]; uint8_t n; } CPollOpCountByte;
 typedef union { unsigned char key[1]; uint8_t n; } CPollFlagsByte;
 
+typedef union { unsigned char n; char c; } CRawPoll;
+
 struct CVoteBallot
 {
     CPollID PollID;
@@ -43,8 +45,9 @@ struct CVoteBallot
 struct CVotePoll
 {
     CVotePoll(){ clear(); }
+    void pollCopy(const CVotePoll& poll);
 
-    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0;}
+    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0; nTally = 0;}
     CPollID ID;                             // 4 Bytes
     CPollName Name;                         // 20 Bytes
     CPollFlags Flags;                       // 1 Byte
@@ -141,6 +144,9 @@ public:
     bool newPoll(CVotePoll* poll, bool createPoll = false);
     bool setPoll(CPollID& pollID);
     bool getPoll(CPollID& pollID, CVotePoll* poll);
+    bool validatePoll(const CVotePoll *poll, const bool& fromBlockchain = false);
+    bool commitPoll(const CVotePoll *poll, const bool& fromBlockchain = false);
+    bool commitToChain(const CVotePoll* poll);
 
     CVotePoll getActivePoll();
     VDBErrors LoadVoteDB(bool& fFirstRunRet);
@@ -157,7 +163,8 @@ int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight = pindexBest-
 CPollTime GetPollTime2(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
-
+bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true);
+bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
 
 
 #endif // VOTE_H

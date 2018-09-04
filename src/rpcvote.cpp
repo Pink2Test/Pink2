@@ -327,6 +327,44 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
                             "User MUST vote confirm if the information is accurate in order to register \n"
                             "the poll with the blockchain.\n");
 
+
+    // Rawpoll prototype encode/decode for platform testing. Not the final version.
+    try {
+        vector<CRawPoll> rawPoll;
+        CVotePoll ourPoll;
+
+        ourPoll.pollCopy(*vIndex->current.poll);
+
+        ourPoll.Name.resize(POLL_NAME_SIZE);
+        ourPoll.Question.resize(POLL_QUESTION_SIZE);
+        for (uint8_t i = 0; i < ourPoll.OpCount; i++)
+            ourPoll.Option[i].resize(POLL_OPTION_SIZE);
+
+        rawPoll.resize(130 + (vIndex->current.poll->OpCount * 45));
+        vector<CRawPoll>::iterator rIt = rawPoll.begin();
+
+        rIt->n = vIndex->current.poll->OpCount;
+        rIt->n |= ((vIndex->current.poll->Flags >> 1) & (uint8_t)120); // 0b01111000, Critical flag mask.
+        rIt->n |= (1U << 7); // Flag this as a poll.
+
+        rIt++;
+
+        memcpy(&rIt->n, &ourPoll.ID, POLL_ID_SIZE); rIt += POLL_ID_SIZE;
+        memcpy(&rIt->n, &ourPoll.Start, 2U); rIt += 2U;
+        memcpy(&rIt->n, &ourPoll.End, 2U); rIt += 2U;
+        memcpy(&rIt->n, &ourPoll.Flags, 1U); rIt += 1U;
+
+        memcpy(&rIt->c, &*ourPoll.Name.c_str(), POLL_NAME_SIZE); rIt += POLL_NAME_SIZE;
+        memcpy(&rIt->c, &*ourPoll.Question.c_str(), POLL_QUESTION_SIZE); rIt += POLL_QUESTION_SIZE;
+
+        for (vector<CPollOption>::const_iterator it = ourPoll.Option.begin(); it < ourPoll.Option.end(); it++)
+        { memcpy(&rIt->c, &*it->c_str(), POLL_OPTION_SIZE); rIt += POLL_OPTION_SIZE; }
+
+        processRawPoll(rawPoll, ourPoll.hash, ourPoll.nHeight, false);
+    } catch (...) {
+        printf("Whelp, that sure didn't work. Damn.\n");
+    }
+
     retObj.push_back(Pair("submitpoll", "WIP"));
 }
 

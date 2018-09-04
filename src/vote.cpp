@@ -7,11 +7,37 @@
 #include "votedb.h"
 #include "vote.h"
 #include "init.h"
+#include "zlib.h"
 #include <random>
+#include <string>
+#include <iostream>
+#include <sstream>
 
 CVote::CVote()
 {
     clear();
+}
+
+void CVotePoll::pollCopy(const CVotePoll& poll)
+{
+    clear();
+
+    ID = poll.ID;
+    Name = poll.Name;
+    Question = poll.Question;
+    Start = poll.Start;
+    End = poll.End;
+    Flags = poll.Flags;
+    OpCount = poll.OpCount;
+
+    for (vector<CPollOption>::const_iterator i = poll.Option.begin(); i < poll.Option.end() ; i++)
+    {
+        Option.push_back(*i);
+    }
+
+    nHeight = poll.nHeight;
+    nTally = poll.nTally;
+    hash = poll.hash;
 }
 
 void ActivePoll::setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags)
@@ -296,6 +322,28 @@ CVotePoll CVote::getActivePoll()
     return *activePoll;
 }
 
+bool CVote::validatePoll(const CVotePoll *poll, const bool& fromBlockchain)
+{
+    return false;
+}
+
+bool CVote::commitPoll(const CVotePoll *poll, const bool &fromBlockchain)
+{
+    bool ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !fromBlockchain);
+    if (ret)
+        this->pollStack.insert(make_pair(poll->ID, *poll));
+
+    if (!fromBlockchain)
+        return commitToChain(poll);
+
+    return ret;
+}
+
+bool CVote::commitToChain(const CVotePoll* poll)
+{
+    return false; // we're getting there, but not yet.
+}
+
 int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight)
 {
     int bHeight = blockHeight;
@@ -367,7 +415,6 @@ bool GetPollHeight(CPollID& pollID, int& pollHeight)
     return true;
 }
 
-
 VDBErrors CVote::LoadVoteDB(bool& fFirstRunRet)
 {
     if (!fFileBacked)
@@ -381,4 +428,78 @@ VDBErrors CVote::LoadVoteDB(bool& fFirstRunRet)
 
     NewThread(ThreadFlushVoteDB, &strWalletFile);
     return VDB_LOAD_OK;
+}
+
+bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256& hash, const int& nHeight, const bool &checkOnly)
+{
+
+    // Check that we have a good poll.
+    vector<CRawPoll>::const_iterator cIt = rawPoll.begin();
+    uint8_t opCount = (cIt->n & (uint8_t)7); // 0b00000111
+    uint8_t critFlags = (cIt->n & (uint8_t)120); //0b01111000
+
+    cIt += (1U + 4U + 2U + 2U);
+    uint8_t pollFlags = cIt->n;
+    const size_t pollSize = 130 + (45 * opCount); // 1(infoBit) + 4(PollID) + 20(Name) + 100(Question) + 2(Start) + 2(End) + 1(flags) + (OpCount * Size_Of_Options)
+    if (pollSize > MAX_VOTE_SIZE) { printf("[processRawPoll: Poll Exceeds limit. \n"); return false; }
+    if (rawPoll.size() != pollSize) { printf("[processRawPoll: Poll has invalid size.\n"); return false; }
+    if (((pollFlags >> 1) & (uint8_t)120) != critFlags) { printf("[processRawPoll]: Reported Critical Flags do not match raw poll."); return false; }
+
+    cIt -= (4U + 2U + 2U);
+    bool success = true;
+    CVotePoll *checkPoll = new CVotePoll();
+
+    if (!checkOnly)
+    {
+        try {
+
+            success = false;
+
+            memcpy(&checkPoll->ID, &cIt->n, POLL_ID_SIZE);
+            cIt += POLL_ID_SIZE;
+
+            memcpy(&checkPoll->Start, &cIt->n, 2U); cIt += 2U;
+            memcpy(&checkPoll->End, &cIt->n, 2U ); cIt += 2U;
+            memcpy(&checkPoll->Flags, &cIt->n, 1U); cIt += 1U;
+
+            char charName[POLL_NAME_SIZE];
+            memcpy(&charName, &cIt->c, POLL_NAME_SIZE);
+            checkPoll->Name = charName;
+            cIt += POLL_NAME_SIZE;
+
+            char charQuestion[POLL_QUESTION_SIZE];
+            memcpy(&charQuestion, &cIt->c, POLL_QUESTION_SIZE);
+            checkPoll->Question = charQuestion;
+            cIt += POLL_QUESTION_SIZE;
+
+            for ( uint8_t i = 0 ; i < opCount ; i++ )
+            {
+                char pOpt[POLL_OPTION_SIZE];
+                memcpy(&pOpt, &cIt->c, POLL_OPTION_SIZE);
+                checkPoll->Option.push_back(string(pOpt));
+                cIt += POLL_OPTION_SIZE;
+            }
+
+
+            checkPoll->OpCount = checkPoll->Option.size();
+            checkPoll->hash = hash;
+            checkPoll->nHeight = nHeight;
+
+            if (vIndex->validatePoll(checkPoll))
+                success = vIndex->commitPoll(checkPoll);
+
+            printf("Success. %u %s %s %u %u. \n", checkPoll->ID, checkPoll->Name.c_str(), checkPoll->Question.c_str(), checkPoll->Start, checkPoll->End);
+
+            return success;
+        } catch (...) {
+            printf("[processRawPoll]: Failed to process raw poll. Debug or contact your friendly neighborhood Dev for assistance./n");
+            return false;
+        }
+    }
+
+    return true;
+}
+bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly)
+{
+    return false;
 }
