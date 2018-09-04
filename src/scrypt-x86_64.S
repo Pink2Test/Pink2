@@ -313,7 +313,7 @@ _scrypt_core:
 	popq	%rbx; \
 
 
-	# PinkuineIntel processors have fast SIMD
+    # GenuineIntel processors have fast SIMD
 	xorl	%eax, %eax
 	cpuid
 	cmpl	$0x6c65746e, %ecx

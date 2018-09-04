@@ -53,6 +53,7 @@ void CVote::clear()
     activePoll->End = 0;
     activePoll->hash = 0;
     activePoll->nHeight = 0;
+    activePoll->nTally = 0;
     activeBallot->PollID = 0;
     activeBallot->OpSelection = 0;
 

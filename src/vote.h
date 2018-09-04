@@ -15,7 +15,7 @@
 using namespace std;
 
 const size_t POLL_ID_SIZE        = 4;
-const size_t POLL_NAME_SIZE      = 15;
+const size_t POLL_NAME_SIZE      = 20;
 const size_t POLL_QUESTION_SIZE  = 100;
 const size_t POLL_OPTION_SIZE    = 45;
 const size_t POLL_OPTION_COUNT   = 6;
@@ -46,16 +46,17 @@ struct CVotePoll
 
     void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0;}
     CPollID ID;                             // 4 Bytes
-    CPollName Name;                         // 15 Bytes
+    CPollName Name;                         // 20 Bytes
     CPollFlags Flags;                       // 1 Byte
     CPollTime Start;                        // 2 Bytes
     CPollTime End;                          // 2 Bytes
     CPollQuestion Question;                 // 100 Bytes
     COptionID OpCount;                      // 1 Byte
-    vector<CPollOption> Option;             // 45 bytes * 8(max) = 360 bytes
+    vector<CPollOption> Option;             // 45 bytes * 6(max) = 270 bytes
 
-    uint256 hash;                      // Store the poll's transaction information.
-    uint64_t nHeight;                       // set the height that the poll got accepted into the blockchain.
+    uint256 hash;                           // Store the poll's transaction information.
+    uint64_t nHeight;                       // Set the height that the poll got accepted into the blockchain.
+    uint64_t nTally;                        // Store the current tally on the blockchain.
 };
 
 typedef union { unsigned char b[8]; uint64_t n; } nHeightByte;
