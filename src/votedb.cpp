@@ -32,6 +32,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string question = "question" + Local;
     string txhash = "txhash" + Local;
     string height = "height" + Local;
+    string tally = "tally";
 
     string option[9];
 
@@ -50,6 +51,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string sPollEnd = std::to_string(votePoll.End);
     string sPollFlags = std::to_string(votePoll.Flags);
     string sPollHeight = std::to_string(votePoll.nHeight);
+    string sPollTally = std::to_string(votePoll.nTally);
     string sHash = votePoll.hash.GetHex();
 
 
@@ -66,6 +68,8 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     if (!Write(make_pair(txhash, sPollID), sHash))
         success = false;
     if (!Write(make_pair(height, sPollID), sPollHeight))
+        success = false;
+    if (!Write(make_pair(tally, sPollID), sPollTally))
         success = false;
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order

@@ -18,7 +18,13 @@ const size_t POLL_ID_SIZE        = 4;
 const size_t POLL_NAME_SIZE      = 20;
 const size_t POLL_QUESTION_SIZE  = 100;
 const size_t POLL_OPTION_SIZE    = 45;
+const size_t POLL_FLAG_SIZE      = 1;
+const size_t POLL_TIME_SIZE      = 2;
 const size_t POLL_OPTION_COUNT   = 6;
+const size_t POLL_PKEY_SIZE      = 65;
+const size_t POLL_INFO_SIZE      = 2U;
+const size_t POLL_HEADER_SIZE    = POLL_INFO_SIZE + POLL_ID_SIZE + POLL_FLAG_SIZE + (2*POLL_TIME_SIZE);
+
 
 typedef uint32_t CPollID;
 typedef string CPollName;
@@ -60,6 +66,7 @@ struct CVotePoll
     uint256 hash;                           // Store the poll's transaction information.
     uint64_t nHeight;                       // Set the height that the poll got accepted into the blockchain.
     uint64_t nTally;                        // Store the current tally on the blockchain.
+    vector<unsigned char> vchPubKey;        // Pubkey of Poll Creator.
 };
 
 typedef union { unsigned char b[8]; uint64_t n; } nHeightByte;
@@ -129,9 +136,10 @@ public:
         POLL_ALLOW_FPOS         = (1U << 1),   // Allow FPOS Votes
         POLL_ALLOW_POW          = (1U << 2),   // Allow POW Votes
         POLL_ALLOW_D4L          = (1U << 3),   // Allow Votes with D4L Donations - Minimum Donation 10 PINK.
-        POLL_VOTE_PER_ADDRESS   = (1U << 4),   // Only accept 1 vote per address.
+        POLL_PAY_TO_POLL        = (1U << 4),   // Funds raised through funds are held until they are voted to be released.
         POLL_FUNDRAISER         = (1U << 5),   // Fundraiser poll. Reset poll fields, treat as Fundraiser.
-        POLL_BOUNTY             = (1U << 6),   // Bounty poll. Reset poll fields, treat as Bounty.
+        POLL_BOUNTY             = (1U << 6) |
+                                  POLL_PAY_TO_POLL,  // Bounty poll. Reset poll fields, treat as Bounty.
         POLL_CLAIM              = (1U << 7)       |  // Bounty/Fundraiser claim poll. Force sets POS, FPOS, and POW.
                                   POLL_ALLOW_POS  |
                                   POLL_ALLOW_FPOS |
@@ -162,6 +170,7 @@ bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
 bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true);
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
+bool getRawPoll(vector<CRawPoll>& rawPoll);
 
 
 #endif // VOTE_H

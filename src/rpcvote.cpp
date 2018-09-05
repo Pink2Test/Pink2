@@ -88,8 +88,8 @@ void PrintFlags(Object& retObj)
         retFlags.push_back(Pair("POW", "enabled"));
     if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_D4L)
         retFlags.push_back(Pair("D4L", "enabled"));
-    if (vIndex->current.poll->Flags & CVote::POLL_VOTE_PER_ADDRESS)
-        retFlags.push_back(Pair("PER_ADDRESS", "enabled"));
+    if (vIndex->current.poll->Flags & CVote::POLL_PAY_TO_POLL)
+        retFlags.push_back(Pair("P2POLL", "enabled"));
     if (vIndex->current.poll->Flags == CVote::POLL_FUNDRAISER)
         retFlags.push_back(Pair("FUNDRAISER", "enabled"));
     if (vIndex->current.poll->Flags == CVote::POLL_BOUNTY)
@@ -136,29 +136,6 @@ void GetPoll(Object& retObj)
             retObj.push_back(Pair("Poll Start", sPollStart));
             retObj.push_back(Pair("Poll End", sPollEnd));
 
-/*
-            Object retFlags;
-            if (vIndex->current.poll->Flags == CVote::POLL_ENFORCE_POS)
-                retFlags.push_back(Pair("ENFORCE_POS", "enabled"));
-            if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_POS)
-                retFlags.push_back(Pair("POS", "enabled"));
-            if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_FPOS)
-                retFlags.push_back(Pair("FPOS", "enabled"));
-            if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_POW)
-                retFlags.push_back(Pair("POW", "enabled"));
-            if (vIndex->current.poll->Flags & CVote::POLL_ALLOW_D4L)
-                retFlags.push_back(Pair("D4L", "enabled"));
-            if (vIndex->current.poll->Flags & CVote::POLL_VOTE_PER_ADDRESS)
-                retFlags.push_back(Pair("PER_ADDRESS", "enabled"));
-            if (vIndex->current.poll->Flags == CVote::POll_FUNDRAISER)
-                retFlags.push_back(Pair("FUNDRAISER", "enabled"));
-            if (vIndex->current.poll->Flags == CVote::POLL_BOUNTY)
-                retFlags.push_back(Pair("BOUNTY", "enabled"));
-            if (vIndex->current.poll->Flags == CVote::POLL_CLAIM)
-                retFlags.push_back(Pair("CLAIM", "enabled"));
-
-            retObj.push_back(Pair("Flags", retFlags));
-*/
             if (vIndex->current.poll->OpCount != (uint8_t)vIndex->current.poll->Option.size())
                 throw runtime_error("Number of options does not match opcount.");
 
@@ -353,63 +330,27 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
         return;
 
     // Rawpoll prototype encode/decode for platform testing. Not the final version.
-    try {
-        vector<CRawPoll> rawPoll;
-        CVotePoll ourPoll;
-
-        ourPoll.pollCopy(*vIndex->current.poll);
-
-        ourPoll.Name.resize(POLL_NAME_SIZE);
-        ourPoll.Question.resize(POLL_QUESTION_SIZE);
-        for (uint8_t i = 0; i < ourPoll.OpCount; i++)
-            ourPoll.Option[i].resize(POLL_OPTION_SIZE);
-
-        rawPoll.resize(130 + (vIndex->current.poll->OpCount * 45));
-        vector<CRawPoll>::iterator rIt = rawPoll.begin();
-
-        rIt->n = vIndex->current.poll->OpCount;
-        rIt->n |= ((vIndex->current.poll->Flags >> 1) & (uint8_t)120); // 0b01111000, Critical flag mask.
-        rIt->n |= (1U << 7); // Flag this as a poll.
-
-        rIt++;
-
-        memcpy(&rIt->n, &ourPoll.ID, POLL_ID_SIZE); rIt += POLL_ID_SIZE;
-        memcpy(&rIt->n, &ourPoll.Start, 2U); rIt += 2U;
-        memcpy(&rIt->n, &ourPoll.End, 2U); rIt += 2U;
-        memcpy(&rIt->n, &ourPoll.Flags, 1U); rIt += 1U;
-
-        memcpy(&rIt->c, &*ourPoll.Name.c_str(), POLL_NAME_SIZE); rIt += POLL_NAME_SIZE;
-        memcpy(&rIt->c, &*ourPoll.Question.c_str(), POLL_QUESTION_SIZE); rIt += POLL_QUESTION_SIZE;
-
-        for (vector<CPollOption>::const_iterator it = ourPoll.Option.begin(); it < ourPoll.Option.end(); it++)
-        { memcpy(&rIt->c, &*it->c_str(), POLL_OPTION_SIZE); rIt += POLL_OPTION_SIZE; }
-
-        processRawPoll(rawPoll, ourPoll.hash, ourPoll.nHeight, false);
-        vector<char> crush;
-        vector<char> boom;
-        vector<char> check;
-
-        crush.resize(rawPoll.size());
-        memcpy(&*crush.begin(), &rawPoll.begin()->c, rawPoll.size());
-
-        charZip(crush, check);
-        charZip(check, boom, true);
-
-        int yep = strcmp(crush.data(), boom.data());
-
-        if (yep == 0)
-        {
-            vector<CRawPoll> Raw2x;
-            Raw2x.resize(boom.size());
-            memcpy(&Raw2x.begin()->c, &*boom.data(), boom.size());
-            processRawPoll(rawPoll, ourPoll.hash, ourPoll.nHeight, false);
-        }
-
-    } catch (...) {
-        printf("Whelp, that sure didn't work. Damn.\n");
+    bool success = false;
+    vector<CRawPoll> rawPoll;
+    if (getRawPoll(rawPoll))
+    {
+        if(processRawPoll(rawPoll, vIndex->current.poll->hash, vIndex->current.poll->nHeight, false))
+            success = true;
+        else
+            success = false;
     }
 
-    retObj.push_back(Pair("submitpoll", "WIP"));
+    if (success)
+    {
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+        retObj.push_back(Pair("Submitted", "true"));
+    }
+    else
+    {
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+        retObj.push_back(Pair("Submitted", "false"));
+    }
+
 }
 
 void PollName(const Array& params, Object& retObj, string& helpText)
@@ -535,7 +476,7 @@ bool FlagSetter(const string& flag, CPollFlags& flags, const bool& set)
         else if (flag == "FPOS")        { flags |= CVote::POLL_ALLOW_FPOS; fSet = true; }
         else if (flag == "POW")         { flags |= CVote::POLL_ALLOW_POW; fSet = true; }
         else if (flag == "D4L")         { flags |= CVote::POLL_ALLOW_D4L; fSet = true; }
-        else if (flag == "PER_ADDRESS") { flags |= CVote::POLL_VOTE_PER_ADDRESS; fSet = true; }
+        else if (flag == "P2POLL") { flags |= CVote::POLL_PAY_TO_POLL; fSet = true; }
         else if (flag == "FUNDRAISER")  { flags = CVote::POLL_FUNDRAISER; fSet = true; }
         else if (flag == "BOUNTY")      { flags = CVote::POLL_BOUNTY; fSet = true; }
         else if (flag == "CLAIM")       { flags = CVote::POLL_CLAIM; fSet = true; }
@@ -545,7 +486,7 @@ bool FlagSetter(const string& flag, CPollFlags& flags, const bool& set)
         else if (flag == "FPOS")        { flags &= ~CVote::POLL_ALLOW_FPOS; fSet = true; }
         else if (flag == "POW")         { flags &= ~CVote::POLL_ALLOW_POW; fSet = true; }
         else if (flag == "D4L")         { flags &= ~CVote::POLL_ALLOW_D4L; fSet = true; }
-        else if (flag == "PER_ADDRESS") { flags &= ~CVote::POLL_VOTE_PER_ADDRESS; fSet = true; }
+        else if (flag == "P2POLL") { flags &= ~CVote::POLL_PAY_TO_POLL; fSet = true; }
         else if (flag == "FUNDRAISER")  { flags &= ~CVote::POLL_FUNDRAISER; fSet = true; }
         else if (flag == "BOUNTY")      { flags &= ~CVote::POLL_BOUNTY; fSet = true; }
         else if (flag == "CLAIM")       { flags &= ~CVote::POLL_CLAIM; fSet = true; }
@@ -585,7 +526,7 @@ void SetFlag(const Array& params, Object& retObj, string& helpText)
                         "|  FPOS        - Accept FPOS Votes. \n"
                         "|  POW         - Accept POW Votes.\n"
                         "|  D4L         - Accept D4L Donation Votes.\n"
-                        "|  PER_ADDRESS - Accept one vote per address.\n"
+                        "|  P2POLL      - Funds are collected and released on successful CLAIM poll.\n"
                         "|  FUNDRAISER  - Designates Poll as Fundraiser.\n"
                         "|  BOUNTY      - Designates Poll as Bounty Fundraiser.\n"
                         "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
@@ -623,9 +564,9 @@ void UnsetFlag(const Array& params, Object& retObj, string& helpText)
                         "|  FPOS        - Accept FPOS Votes. \n"
                         "|  POW         - Accept POW Votes.\n"
                         "|  D4L         - Accept D4L Donation Votes.\n"
-                        "|  PER_ADDRESS - Accept one vote per address.\n"
-                        "|  FUNDRAISER  - Designates Poll as Fundraiser. Resets all fields.\n"
-                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser. Resets all fields.\n"
+                        "|  P2POLL      - Funds are collected and released on successful CLAIM poll.\n"
+                        "|  FUNDRAISER  - Designates Poll as Fundraiser.\n"
+                        "|  BOUNTY      - Designates Poll as Bounty Fundraiser. P2POLL Required.\n"
                         "|  CLAIM       - Designates Poll as a Fundraiser Claim poll.\n"
                         "|                  Force Sets appropriate flags and resets all fields.\n");
 
