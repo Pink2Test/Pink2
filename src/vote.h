@@ -27,17 +27,15 @@ typedef string CPollQuestion;
 typedef uint8_t COptionID;
 typedef string CPollOption;
 typedef uint8_t CPollFlags;
-// typedef map<CPollID, COptionID> CVoteBallot;
 
-typedef union { unsigned char key[4]; uint32_t n; } CPollIDByte;
-typedef union { unsigned char key[2]; uint16_t n; } CPollTimeByte;
-typedef union { unsigned char key[1]; uint8_t n; } CPollOpCountByte;
-typedef union { unsigned char key[1]; uint8_t n; } CPollFlagsByte;
-
-typedef union { unsigned char n; char c; } CRawPoll;
+typedef union { unsigned char n; char c; } CRawPoll; // For the blockchain.
 
 struct CVoteBallot
 {
+    CVoteBallot() { clear(); }
+    ~CVoteBallot() {}
+
+    void clear() {PollID = 0; OpSelection = 0;}
     CPollID PollID;
     COptionID OpSelection;
 };
@@ -45,6 +43,8 @@ struct CVoteBallot
 struct CVotePoll
 {
     CVotePoll(){ clear(); }
+    ~CVotePoll() {}
+
     void pollCopy(const CVotePoll& poll);
 
     void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0; nTally = 0;}
@@ -91,19 +91,23 @@ struct ActivePoll
     PollStack::iterator& pIt;
     BallotStack::iterator& bIt;
 
-    ActivePoll() :  pIt(*(new PollStack::iterator)), bIt(*(new BallotStack::iterator))
-    { ID = 0; BID =0; setActive(pIt, bIt, SET_CLEAR); poll->clear();}
+    ActivePoll(); //  :  pIt(*(new PollStack::iterator)), bIt(*(new BallotStack::iterator))
+    // { ID = 0; BID =0;
+       // dummyPStack->insert(make_pair(dummyPoll->ID, *dummyPoll));
+        // dummyBStack->insert(make_pair(dummyBallot->PollID, *dummyBallot));
+        //setActive(dummyPStack->find(0), dummyBStack->find(0), SET_CLEAR); poll->clear();}
+
+    ~ActivePoll() {}
 
     void setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
+
+private:
 };
 
 class CVote : public CWallet
 {
 private:
-    CVotePoll *activePoll;
-    CVoteBallot *activeBallot;
-
-    bool havePoll;
+    bool havePoll;          // Poll is in the chain AND in our local stack.
     uint8_t optionCount;
     uint8_t ballotCount;
 
@@ -140,8 +144,7 @@ public:
                                   POLL_ALLOW_POW
     };
 
-    void saveActive();
-    bool newPoll(CVotePoll* poll, bool createPoll = false);
+    bool newPoll(CVotePoll* poll);
     bool setPoll(CPollID& pollID);
     bool getPoll(CPollID& pollID, CVotePoll* poll);
     bool validatePoll(const CVotePoll *poll, const bool& fromBlockchain = false);

@@ -296,24 +296,20 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
 
     if (param1 != "")
         helpText = ("vote newpoll\n"
-                            "Creates a new poll, sets it to active, and returns it's PollID.\n");
+                            "Creates a new poll, sets it to active, and returns its PollID.\n");
 
     if (helpText != "")
         return;
 
     CVotePoll *newPoll = new CVotePoll();
     newPoll->clear();
-    if (vIndex->newPoll(newPoll, true))
-        vIndex->setPoll(vIndex->current.poll->ID);  // should get set properly in newPoll but doesn't. Debug later.
-    else
+    if (!vIndex->newPoll(newPoll))
         throw runtime_error("New Poll Creation Failed.\n");
 
     retObj.push_back(Pair("New PollID", to_string(vIndex->current.poll->ID)));
 
     CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
     CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
-    //pvoteDB->WriteVote(*vIndex->current.poll, true);
-    //pvoteDB->WriteBallot(*vIndex->current.ballot);
 }
 
 void SetActive(const Array& params, Object& retObj, string& helpText)
