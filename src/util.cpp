@@ -6,6 +6,7 @@
 #include "util.h"
 #include "sync.h"
 #include "version.h"
+#include "zlib.h"
 #include "ui_interface.h"
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -31,6 +32,7 @@ namespace boost {
 #include <openssl/rand.h>
 #include <stdarg.h>
 #include <chrono>
+#include <string>
 
 #ifdef WIN32
 #ifdef _MSC_VER
@@ -1372,4 +1374,52 @@ uint32_t rGen32()
     std::uniform_int_distribution<uint32_t> range(0, 0xFFFFFFFF);
 
     return range(random);
+}
+
+void charZip(std::vector<char>& charIn, std::vector<char>& charOut, bool decompress)
+{
+    if (!decompress)
+    {
+        char crush[16384];
+
+        z_stream shrink;
+        shrink.zalloc = Z_NULL;
+        shrink.opaque = Z_NULL;
+        shrink.zfree = Z_NULL;
+
+        shrink.next_in = (Bytef*)charIn.data();
+        shrink.next_out = (Bytef*)crush;
+        shrink.avail_in = (unsigned int)charIn.size();
+        shrink.avail_out = 16384;
+
+        deflateInit(&shrink, Z_BEST_COMPRESSION);
+        deflate(&shrink, Z_FINISH);
+        deflateEnd(&shrink);
+
+        charOut.resize((size_t)shrink.total_out);
+        std::vector<char> holdChar(crush, crush + shrink.total_out);
+        charOut = holdChar;
+
+    } else {
+        char boom[16384];
+
+        z_stream blow;
+        blow.zalloc = Z_NULL;
+        blow.opaque = Z_NULL;
+        blow.zfree = Z_NULL;
+
+        blow.next_in = (Bytef*)charIn.data();
+        blow.next_out = (Bytef*)boom;
+        blow.avail_in = (unsigned int)charIn.size();
+        blow.avail_out = 16384;
+
+        inflateInit(&blow);
+        inflate(&blow, Z_NO_FLUSH);
+        inflateEnd(&blow);
+
+        charOut.resize((size_t)blow.total_out);
+        std::vector<char> holdChar(boom, boom + blow.total_out);
+        charOut = holdChar;
+
+    }
 }

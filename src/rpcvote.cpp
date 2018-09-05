@@ -385,6 +385,26 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
         { memcpy(&rIt->c, &*it->c_str(), POLL_OPTION_SIZE); rIt += POLL_OPTION_SIZE; }
 
         processRawPoll(rawPoll, ourPoll.hash, ourPoll.nHeight, false);
+        vector<char> crush;
+        vector<char> boom;
+        vector<char> check;
+
+        crush.resize(rawPoll.size());
+        memcpy(&*crush.begin(), &rawPoll.begin()->c, rawPoll.size());
+
+        charZip(crush, check);
+        charZip(check, boom, true);
+
+        int yep = strcmp(crush.data(), boom.data());
+
+        if (yep == 0)
+        {
+            vector<CRawPoll> Raw2x;
+            Raw2x.resize(boom.size());
+            memcpy(&Raw2x.begin()->c, &*boom.data(), boom.size());
+            processRawPoll(rawPoll, ourPoll.hash, ourPoll.nHeight, false);
+        }
+
     } catch (...) {
         printf("Whelp, that sure didn't work. Damn.\n");
     }

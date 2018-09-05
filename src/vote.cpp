@@ -7,7 +7,6 @@
 #include "votedb.h"
 #include "vote.h"
 #include "init.h"
-#include "zlib.h"
 #include "util.h"
 #include <random>
 #include <string>
