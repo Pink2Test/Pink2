@@ -30,6 +30,7 @@ namespace boost {
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
 #include <stdarg.h>
+#include <chrono>
 
 #ifdef WIN32
 #ifdef _MSC_VER
@@ -1354,4 +1355,21 @@ bool NewThread(void(*pfn)(void*), void* parg)
         return false;
     }
     return true;
+}
+
+uint32_t rGen32()
+{
+    std::random_device rd;
+    std::default_random_engine rde(rd());
+    std::uniform_int_distribution<uint64_t> rdx(0, 0xFFFFFFFFFFFFFFFF);
+
+    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
+    std::chrono::system_clock::duration e = t.time_since_epoch();
+    uint64_t rseed = e.count();
+
+    std::seed_seq seed{rdx(rde),rseed};
+    std::default_random_engine random(seed);
+    std::uniform_int_distribution<uint32_t> range(0, 0xFFFFFFFF);
+
+    return range(random);
 }

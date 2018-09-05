@@ -91,12 +91,7 @@ struct ActivePoll
     PollStack::iterator& pIt;
     BallotStack::iterator& bIt;
 
-    ActivePoll(); //  :  pIt(*(new PollStack::iterator)), bIt(*(new BallotStack::iterator))
-    // { ID = 0; BID =0;
-       // dummyPStack->insert(make_pair(dummyPoll->ID, *dummyPoll));
-        // dummyBStack->insert(make_pair(dummyBallot->PollID, *dummyBallot));
-        //setActive(dummyPStack->find(0), dummyBStack->find(0), SET_CLEAR); poll->clear();}
-
+    ActivePoll(); 
     ~ActivePoll() {}
 
     void setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
@@ -117,10 +112,9 @@ private:
     CPollID getNewPollID();
 
 public:
-    mutable CCriticalSection cs_vote;
-
     void clear();
     CVote();
+    ~CVote() {}
 
     CVote(std::string strVoteFileIn)
     {
@@ -130,7 +124,7 @@ public:
     }
 
     enum flags : CPollFlags {
-        POLL_ENFORCE_POS        = 0,           // POS Only. No other votes are allowed (default).
+        POLL_ENFORCE_POS        = 0,           // POS Only. No other votes bool altare allowed (default).
         POLL_ALLOW_POS          = (1U << 0),   // Custom Poll Requirements - Allow POS Votes
         POLL_ALLOW_FPOS         = (1U << 1),   // Allow FPOS Votes
         POLL_ALLOW_POW          = (1U << 2),   // Allow POW Votes

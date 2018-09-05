@@ -8,6 +8,7 @@
 #include "vote.h"
 #include "init.h"
 #include "zlib.h"
+#include "util.h"
 #include <random>
 #include <string>
 #include <iostream>
@@ -177,12 +178,8 @@ bool pollCompare(CVotePoll* a, CVotePoll* b)
 
 CPollID CVote::getNewPollID()
 {
-    random_device rd;
-    default_random_engine random(rd());
-    uniform_int_distribution<uint32_t> range(0, 0xFFFFFFFF);
 
-    CPollID randomID = range(random);
-
+    CPollID randomID = rGen32();
     return randomID;
 }
 
