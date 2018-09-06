@@ -603,6 +603,7 @@ void AddOption(const Array& params, Object& retObj, string& helpText)
 
     if (param1 != "")
     {
+        vIndex->current.poll->nTally.push_back(*(new CVoteTally));
         vIndex->current.poll->Option.push_back(param1);
         vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
         CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
@@ -638,11 +639,18 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
     CVotePoll holdPoll = *vIndex->current.poll;
 
     vector<CPollOption>::iterator it = vIndex->current.poll->Option.begin();
+    vector<CVoteTally>::iterator tit = vIndex->current.poll->nTally.begin();
     it += (stoi(param1) - 1);
+    tit += (stoi(param1) - 1);
 
     vIndex->current.poll->Option.erase(it);
     vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
-    vIndex->current.ballot->OpSelection = 0;
+    if (vIndex->current.ballot->OpSelection > (stoi(param1) - 1))
+        vIndex->current.ballot->OpSelection--;
+    else if (vIndex->current.ballot->OpSelection == (stoi(param1) - 1))
+        vIndex->current.ballot->OpSelection = 0;
+
+    vIndex->current.poll->nTally.erase(tit);
 
     CVoteDB(vIndex->strWalletFile).EraseVote(holdPoll);                 // Ugly but cheap overall.
     CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);

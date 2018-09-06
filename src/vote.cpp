@@ -45,15 +45,182 @@ void CVotePoll::pollCopy(const CVotePoll& poll)
     Flags = poll.Flags;
     OpCount = poll.OpCount;
 
-    for (vector<CPollOption>::const_iterator i = poll.Option.begin(); i < poll.Option.end() ; i++)
+    assert(poll.Option.size() == poll.nTally.size());
+
+    vector<CVoteTally>::const_iterator ti = poll.nTally.begin();
+    for (vector<CPollOption>::const_iterator i = poll.Option.begin(); i != poll.Option.end() ; i++)
     {
+
         Option.push_back(*i);
+        nTally.push_back(*ti);
+        ti++;
     }
 
     nHeight = poll.nHeight;
-    nTally = poll.nTally;
     hash = poll.hash;
 }
+
+bool CVotePoll::isValid()
+{
+    return false;
+}
+
+bool CVotePoll::haveParent()
+{
+    if (Option.size() < 1)
+        return false;
+
+    vector<CPollOption>::iterator pIt = Option.begin();
+    CPollID ParentID = stoi(*pIt);
+
+    return (ParentID != 0 && vIndex->pollCache.find(ParentID) != vIndex->pollCache.end());
+
+}
+bool CVotePoll::parentEnded()
+{
+    if (Option.size() < 1)
+        return false;
+
+    vector<CPollOption>::iterator pIt = Option.begin();
+    CPollID ParentID = stoi(*pIt);
+
+    return (ParentID != 0 && vIndex->pollCache.at(ParentID).hasEnded());
+
+}
+
+bool CVotePoll::hasEnded()
+{
+    return (GetPollTime(End, nHeight) < pindexBest->nTime && vIndex->pollCache.find(ID) != vIndex->pollCache.end());
+}
+
+bool CVotePoll::isComplete()
+{
+    if (Name.size() < 2 || Question.size() < 6 || End <= Start ||
+        ID == 0 || strlen((char *)vchPubKey.data()) < 33)
+        return false;
+
+    if (Option.size() > 1 && nHeight > 0 && hash > 0)
+        return true;
+    if (isFund() && nHeight > 0 && hash > 0)
+        return true;
+
+    if (isFund() && Option.size() > 0 && isLocal())
+        return true;
+    if (Option.size() > 1 && isLocal())
+        return true;
+
+    return false;
+}
+
+bool CVotePoll::isMine()
+{
+    // Is it valid? Do I have the private key for it? If not, is the poll local only (off chain)?
+    return ((CPubKey(vchPubKey).IsValid() && pwalletMain->HaveKey(CPubKey(vchPubKey).GetID())) ||
+            isLocal());
+}
+
+bool CVotePoll::isLocal()
+{
+    // If we're not in the Cache and Our ID is set then we MUST be local.
+    return (ID != 0 && vIndex->pollCache.find(ID) == vIndex->pollCache.end());
+}
+
+bool CVotePoll::isConsensus()
+{
+    vector<CPollOption>::const_iterator pOpt = Option.begin();
+
+    if(pOpt == Option.end() || Option.size() != 3 || nTally.size() != 3)
+        return false;
+
+    pOpt++; // Option 1 is reserved for PubKey if it's a claim poll;
+    if(string(pOpt->data()) != "Approve.")
+        return false;
+    pOpt++;
+    if(string(pOpt->data()) != "Disapprove.")
+        return false;
+
+    // POLL_CLAIM covers POS/FPOS/POW for us.
+    if(Flags & (CVote::POLL_CLAIM + CVote::POLL_ALLOW_D4L))
+        return true;
+    else if (Flags == CVote::POLL_ENFORCE_POS)
+        return true;
+
+    return false;
+}
+
+bool CVotePoll::isApproved()
+{
+    // 2/3rds approval required to approve a consensus change or claim on a fundraiser/bounty.
+    return (getConsensus() > (POLL_CONSENSUS_PRECISION * 2 / 3));
+}
+bool CVotePoll::isFullyApproved()
+{
+    // 90% approval required to override funding destination of parent poll.
+    // May also be used to manage other sensitive decisions.
+    return (getConsensus() > (POLL_CONSENSUS_PRECISION * 90 / 100));
+}
+
+uint64_t CVotePoll::getConsensus()
+{
+    if(!isConsensus() || !isComplete())
+        return 0;
+
+    int typeCount = 0;
+    uint64_t pollSuccess = 0;
+
+    if(acceptPOS())
+    {
+        uint64_t nTotal = (nTally[1].POS + nTally[2].POS) * POLL_CONSENSUS_PRECISION;
+        uint64_t nApproved = (nTally[1].POS) * POLL_CONSENSUS_PRECISION;
+        if (nTotal > 0)
+            pollSuccess += nApproved / nTotal;
+        else
+            pollSuccess += POLL_CONSENSUS_PRECISION/2;
+        typeCount++;
+    }
+    if(acceptFPOS())
+    {
+        uint64_t nTotal = (nTally[1].FPOS + nTally[2].FPOS) * POLL_CONSENSUS_PRECISION;
+        uint64_t nApproved = (nTally[1].FPOS) * POLL_CONSENSUS_PRECISION;
+        if (nTotal > 0)
+            pollSuccess += nApproved / nTotal;
+        else
+            pollSuccess += POLL_CONSENSUS_PRECISION/2;
+        typeCount++;
+    }
+    if(acceptPOW())
+    {
+        uint64_t nTotal = (nTally[1].POW + nTally[2].POW) * POLL_CONSENSUS_PRECISION;
+        uint64_t nApproved = (nTally[1].POW) * POLL_CONSENSUS_PRECISION;
+        if (nTotal > 0)
+            pollSuccess += nApproved / nTotal;
+        else
+            pollSuccess += POLL_CONSENSUS_PRECISION/2;
+        typeCount++;
+    }
+    if(acceptPOS())
+    {
+        uint64_t nTotal = (nTally[1].D4L + nTally[2].D4L) * POLL_CONSENSUS_PRECISION;
+        uint64_t nApproved = (nTally[1].D4L) * POLL_CONSENSUS_PRECISION;
+        if (nTotal > 0)
+            pollSuccess += nApproved / nTotal;
+        else
+            pollSuccess += POLL_CONSENSUS_PRECISION/2;
+        typeCount++;
+    }
+
+    return (pollSuccess / typeCount);
+}
+
+bool CVotePoll::onlyPOS() { return (Flags == CVote::POLL_ENFORCE_POS); }
+bool CVotePoll::acceptPOS() { return (Flags & CVote::POLL_ALLOW_POS || Flags == CVote::POLL_ENFORCE_POS); }
+bool CVotePoll::acceptFPOS() { return (Flags & CVote::POLL_ALLOW_FPOS); }
+bool CVotePoll::acceptPOW() { return (Flags & CVote::POLL_ALLOW_POW); }
+bool CVotePoll::acceptD4L() { return (Flags & CVote::POLL_ALLOW_D4L); }
+bool CVotePoll::isFund() { return (Flags & CVote::POLL_FUNDRAISER); }
+bool CVotePoll::isBounty() { return (Flags == CVote::POLL_BOUNTY); }
+bool CVotePoll::isP2POLL() { return (Flags & CVote::POLL_PAY_TO_POLL);}
+bool CVotePoll::isClaim() { return Flags == CVote::POLL_CLAIM; }
 
 void ActivePoll::setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags)
 {
@@ -77,7 +244,6 @@ void ActivePoll::setActive(const PollStack::iterator &pit, const BallotStack::it
          poll =  &pit->second;
          ballot = &bit->second;
      }
-
 }
 
 void CVote::clear()
@@ -98,7 +264,7 @@ void CVote::clear()
 
     current.setActive(current.pIt, current.bIt, ActivePoll::SET_CLEAR);
 
-    this->havePoll = false;
+    this->readyPoll = false;
     this->optionCount = 0;
     this->ballotCount = 0;
 }
@@ -133,7 +299,7 @@ bool CVote::newPoll(CVotePoll* poll)
 
     current.setActive(pollStack.find(poll->ID), ballotStack.find(ballot->PollID));
 
-    havePoll = false;
+    readyPoll = false;
     return true;
 }
 
@@ -167,9 +333,14 @@ bool pollCompare(CVotePoll* a, CVotePoll* b)
         a->nHeight != b->nHeight)
     return false;
 
+    if (a->Option.size() != b->Option.size() || a->Option.size() != b->nTally.size())
+            return false;
+
     for (unsigned int i=0 ; i < a->Option.size() ; i++)
     {
-        if (a->Option[i] != b->Option[i])
+        if (a->Option[i] != b->Option[i] || a->nTally[i].POS != b->nTally[i].POS ||
+            a->nTally[i].FPOS != b->nTally[i].FPOS || a->nTally[i].POW != b->nTally[i].POW ||
+            a->nTally[i].D4L != b->nTally[i].D4L)
             return false;
     }
     return true;
@@ -188,13 +359,13 @@ bool CVote::setPoll(CPollID& pollID)
     if (pollCache.find(pollID) != pollCache.end())
     {
         current.setActive(pollCache.find(pollID), current.bIt, ActivePoll::SET_POLL);
-        havePoll = true;
+        readyPoll = false;
         setPoll=true;
     }
     if (pollStack.find(pollID) != pollStack.end())
     {
         current.setActive(pollStack.find(pollID), current.bIt, ActivePoll::SET_POLL);
-        havePoll = true;
+        readyPoll = false;
         setPoll=true;
     }
 
@@ -217,9 +388,28 @@ CVotePoll CVote::getActivePoll()
     return *current.poll;
 }
 
-bool CVote::validatePoll(const CVotePoll *poll, const bool& fromBlockchain)
+bool CVote::validatePoll(const CVotePoll* poll, const bool& fromBlockchain)
 {
-    return false;
+    CVotePoll *p = new CVotePoll();
+    p->pollCopy(*poll);
+
+    if (fromBlockchain)
+        return p->isValid();
+
+    readyPoll = true;
+
+    if (p->Start < p->End)
+        readyPoll = false;
+    if (p->isClaim() && !fTestNet)
+    {
+        if(p->Start < GetPollTime2(GetAdjustedTime() + (24 * 7))) { readyPoll = false; }
+        else if (p->Start < p->End + (24 * 14)) { readyPoll = false; }
+        else if (!p->haveParent() || !p->parentEnded()) { readyPoll = false; }
+    }
+
+    delete p;
+
+    return readyPoll;
 }
 
 bool CVote::commitPoll(const CVotePoll *poll, const bool &fromBlockchain)
@@ -390,13 +580,14 @@ bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256& hash, const 
                 char pOpt[POLL_OPTION_SIZE];
                 memcpy(&pOpt, &cIt->c, POLL_OPTION_SIZE);
                 checkPoll->Option.push_back(string(pOpt));
+                checkPoll->nTally.push_back(*(new CVoteTally));
                 cIt += POLL_OPTION_SIZE;
             }
 
             unsigned char charPubKey[POLL_PKEY_SIZE];
             memcpy(&charPubKey, &cIt->n, POLL_PKEY_SIZE);
+
             vector<unsigned char> holdKey(&charPubKey[0], &charPubKey[0] + POLL_PKEY_SIZE);
-            // holdKey.resize(0, std::find(holdKey.begin(), holdKey.end(), '\0'));
             checkPoll->vchPubKey = holdKey;
             checkPoll->vchPubKey.resize(strlen((char *)holdKey.data()));
 

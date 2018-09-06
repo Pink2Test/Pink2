@@ -30,20 +30,26 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string start = "start" + Local;
     string end = "end" + Local;
     string question = "question" + Local;
-    string txhash = "txhash" + Local;
-    string height = "height" + Local;
-    string tally = "tally";
+    string txhash = "txhash";
+    string height = "height";
 
-    string option[9];
+    string option[7];
+    string tallyPOS[7];
+    string tallyFPOS[7];
+    string tallyPOW[7];
+    string tallyD4L[7];
 
-    option[1] = "option1" + Local;    // I know this is all ugly
-    option[2] = "option2" + Local;    // But it's simple, fast, and it works.
-    option[3] = "option3" + Local;    // Skipping [0] for loop peel simplicity.
-    option[4] = "option4" + Local;
-    option[5] = "option5" + Local;
-    option[6] = "option6" + Local;
-    option[7] = "option7" + Local;
-    option[8] = "option8" + Local;
+    for (int i = 0; i < 7 ; i++ )
+    {
+        option[i] = "option" + to_string(i) + Local;
+        if (Local.size() == 0)
+        {
+            tallyPOS[i] = "tPOS" + to_string(i);
+            tallyFPOS[i] = "tFPOS" + to_string(i);
+            tallyPOW[i] = "tPOW" + to_string(i);
+            tallyD4L[i] = "tD4L" + to_string(i);
+        }
+    }
 
 
     string sPollID = std::to_string(votePoll.ID);
@@ -51,7 +57,6 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string sPollEnd = std::to_string(votePoll.End);
     string sPollFlags = std::to_string(votePoll.Flags);
     string sPollHeight = std::to_string(votePoll.nHeight);
-    string sPollTally = std::to_string(votePoll.nTally);
     string sHash = votePoll.hash.GetHex();
 
 
@@ -69,14 +74,28 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
         success = false;
     if (!Write(make_pair(height, sPollID), sPollHeight))
         success = false;
-    if (!Write(make_pair(tally, sPollID), sPollTally))
-        success = false;
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order
     {                                                         // when we load them again later.
         const string vOption = votePoll.Option[i-1];
         if (!Write(make_pair(option[i], sPollID), vOption))
             success = false;
+
+        if (Local.size() == 0)
+        {
+            const string vTallyPOS = to_string(votePoll.nTally[i-1].POS);
+            const string vTallyFPOS = to_string(votePoll.nTally[i-1].FPOS);
+            const string vTallyPOW = to_string(votePoll.nTally[i-1].POW);
+            const string vTallyD4L = to_string(votePoll.nTally[i-1].D4L);
+            if (!Write(make_pair(tallyPOS[i], sPollID), vTallyPOS))
+                success = false;
+            if (!Write(make_pair(tallyFPOS[i], sPollID), vTallyFPOS))
+                success = false;
+            if (!Write(make_pair(tallyPOW[i], sPollID), vTallyPOW))
+                success = false;
+            if (!Write(make_pair(tallyD4L[i], sPollID), vTallyD4L))
+                success = false;
+        }
     }
     nVoteDBUpdated++;
     return success;
@@ -96,23 +115,30 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     string start = "start" + Local;
     string end = "end" + Local;
     string question = "question" + Local;
-    string txhash = "txhash" + Local;
-    string height = "height" + Local;
+    string txhash = "txhash";
+    string height = "height";
 
-    string option[9];
+    string option[7];
+    string tallyPOS[7];
+    string tallyFPOS[7];
+    string tallyPOW[7];
+    string tallyD4L[7];
 
-    option[1] = "option1" + Local;    // I know this is all ugly
-    option[2] = "option2" + Local;    // But it's simple, fast, and it works.
-    option[3] = "option3" + Local;    // Skipping [0] for loop peel simplicity.
-    option[4] = "option4" + Local;
-    option[5] = "option5" + Local;
-    option[6] = "option6" + Local;
-    option[7] = "option7" + Local;
-    option[8] = "option8" + Local;
+    for (int i = 0; i < 7 ; i++ )
+    {
+        option[i] = "option" + to_string(i) + Local;
+        if (Local.size() == 0)
+        {
+            tallyPOS[i] = "tPOS" + to_string(i);
+            tallyFPOS[i] = "tFPOS" + to_string(i);
+            tallyPOW[i] = "tPOW" + to_string(i);
+            tallyD4L[i] = "tD4L" + to_string(i);
+        }
+    }
 
     string sPollID = std::to_string(votePoll.ID);
 
-    if (Erase(make_pair(name,sPollID)))
+    if (Erase(make_pair(name, sPollID)))
         success = true;
     if (Erase(make_pair(flags, sPollID)))
         success = true;
@@ -131,6 +157,17 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     {                                                         // when we load them again later.
         if (Erase(make_pair(option[i], sPollID)))
             success = true;
+        if (Local.size() == 0)
+        {
+                if (Erase(make_pair(tallyPOS[i], sPollID)))
+                success = true;
+                if (Erase(make_pair(tallyFPOS[i], sPollID)))
+                success = true;
+                if (Erase(make_pair(tallyPOW[i], sPollID)))
+                success = true;
+                if (Erase(make_pair(tallyD4L[i], sPollID)))
+                success = true;
+        }
     }
 
     nVoteDBUpdated++;
@@ -153,26 +190,33 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     string start = "start" + Local;
     string end = "end" + Local;
     string question = "question" + Local;
-    string txhash = "txhash" + Local;
-    string height = "height" + Local;
+    string txhash = "txhash";
+    string height = "height";
 
-    string option[9];
+    string option[7];
+    string tallyPOS[7];
+    string tallyFPOS[7];
+    string tallyPOW[7];
+    string tallyD4L[7];
 
-    option[1] = "option1" + Local;    // I know this is all ugly
-    option[2] = "option2" + Local;    // But it's simple, fast, and it works.
-    option[3] = "option3" + Local;    // Skipping [0] for loop peel simplicity.
-    option[4] = "option4" + Local;
-    option[5] = "option5" + Local;
-    option[6] = "option6" + Local;
-    option[7] = "option7" + Local;
-    option[8] = "option8" + Local;
+    for (int i = 0; i < 7 ; i++ )
+    {
+        option[i] = "option" + to_string(i) + Local;
+        if (Local.size() == 0)
+        {
+                tallyPOS[i] = "tPOS" + to_string(i);
+                tallyFPOS[i] = "tFPOS" + to_string(i);
+                tallyPOW[i] = "tPOW" + to_string(i);
+                tallyD4L[i] = "tD4L" + to_string(i);
+        }
+    }
 
     string sPollID = std::to_string(votePollID.ID);
-    string sPollStart;// = std::to_string(votePoll.Start);
-    string sPollEnd;// = std::to_string(votePoll.End);
-    string sPollFlags;// = std::to_string(votePoll.Flags);
-    string sPollHeight;// = std::to_string(votePoll.nHeight);
-    string sHash;// = votePoll.hash.GetHex();
+    string sPollStart;
+    string sPollEnd;
+    string sPollFlags;
+    string sPollHeight;
+    string sHash;
 
     votePoll.ID = votePollID.ID;
 
@@ -185,7 +229,7 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     else
     {
         if (sPollFlags != "")
-            votePoll.Flags = (int8_t)stoi(sPollFlags);
+            votePoll.Flags = (uint8_t)stoi(sPollFlags);
         readAnything = true;
     }
     if (!Read(make_pair(start, sPollID), sPollStart))
@@ -225,18 +269,47 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
         readAnything = true;
     }
 
-    for (uint8_t i = 0 ; i < 8 ; i++)
+    for (uint8_t i = 0 ; i < 6 ; i++)
     {
         string vOption;
+        string sTally;
+        CVoteTally vTally;
+        bool tallySuccess = true;
         if (Read(make_pair(option[i+1], sPollID), vOption))
         {
             votePoll.Option.push_back(vOption);
             votePoll.OpCount = (int8_t)votePoll.Option.size();
             readAnything = true;
         }
+
+        if (Read(make_pair(tallyPOS[i+1], sPollID), sTally))
+            vTally.POS = stoul(sTally);
+        else
+            tallySuccess = false;
+
+        if (Read(make_pair(tallyFPOS[i+1], sPollID), sTally))
+            vTally.FPOS = stoul(sTally);
+        else
+            tallySuccess = false;
+
+        if (Read(make_pair(tallyPOW[i+1], sPollID), sTally))
+            vTally.POW = stoul(sTally);
+        else
+            tallySuccess = false;
+
+        if (Read(make_pair(tallyD4L[i+1], sPollID), sTally))
+            vTally.D4L = stoul(sTally);
+        else
+            tallySuccess = false;
+
+        if (tallySuccess)
+            votePoll.nTally.push_back(vTally);
     }
 
-    if (votePoll.OpCount < 2)
+    if ((votePoll.OpCount != votePoll.Option.size()) || (votePoll.Option.size() != votePoll.nTally.size()))
+        success = false;
+
+    if ((votePoll.OpCount < 1 && votePoll.isFund()) && votePoll.OpCount < 2)
         success = false;
 
     if (readAnything && isLocal)
@@ -473,12 +546,6 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
                     stack.poll->hash = activePoll.hash;
                 else
                     voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            } else if (strType.find("Local", typeLen) != string::npos)
-            {
-                if (stack.pIt != voteIndex->pollStack.end())
-                    stack.poll->hash = activePoll.hash;
-                else
-                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
         else if (strType == "height")
@@ -494,13 +561,51 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
                     stack.poll->nHeight = activePoll.nHeight;
                 else
                     voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
-            } else if (strType.find("Local", typeLen) != string::npos)
-            {
-                if (stack.pIt != voteIndex->pollStack.end())
-                    stack.poll->nHeight = activePoll.nHeight;
-                else
-                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
+        }
+        else if (strType.rfind("t", 0) == 0) // never add anything starting with t after this.
+        {
+            string strTally;
+            string strTallyType = strType.substr(1, strType.size() - 2);
+            uint8_t nTally = (uint8_t)stoi(strType.substr(strType.size() - 1, 1));
+            uint32_t *tallyPoint;
+
+            ssValue >> strTally;
+
+            bool typeOk = false;
+            if (strTallyType == "POS")
+                typeOk = true;
+            else if (strTallyType == "FPOS")
+                typeOk = true;
+            else if (strTallyType == "POW")
+                typeOk = true;
+            else if (strTallyType == "D4L")
+                typeOk = true;
+
+            if (!typeOk)
+                return false;
+
+            if (stack.pIt == voteIndex->pollCache.end())
+            {
+                voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+                stack.pIt = voteIndex->pollCache.find(activePoll.ID);
+                stack.setActive(stack.pIt, stack.bIt, ActivePoll::SET_POLL);
+            }
+
+            if(stack.poll->nTally.size() < nTally)
+                stack.poll->nTally.resize(nTally);  // Should only have to do this once as we write top first.
+
+            if (strTallyType == "POS")
+                tallyPoint = &stack.poll->nTally[nTally-1].POS;
+            else if (strTallyType == "FPOS")
+                tallyPoint = &stack.poll->nTally[nTally-1].FPOS;
+            else if (strTallyType == "POW")
+                tallyPoint = &stack.poll->nTally[nTally-1].POW;
+            else if (strTallyType == "D4L")
+                tallyPoint = &stack.poll->nTally[nTally-1].D4L;
+
+            *tallyPoint = (uint32_t)stoul(strTally);
+
         }
         else if (strType == "ballotID")
         {
@@ -516,6 +621,7 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
     {
         return false;
     }
+
 
     return true;
 
@@ -559,6 +665,28 @@ VDBErrors CVoteDB::LoadVote(CVote* voteIndex)
             }
             if (!strErr.empty())
                 printf("%s\n", strErr.c_str());
+
+        }
+        for (PollStack::iterator sIt = voteIndex->pollStack.begin(); sIt != voteIndex->pollStack.end(); sIt++)
+        {
+            if (sIt->second.Option.size() != sIt->second.nTally.size())
+                sIt->second.nTally.resize(sIt->second.Option.size());
+
+            PollStack::iterator pIt = voteIndex->pollCache.find(sIt->second.ID);
+            if (pIt != voteIndex->pollCache.end() && sIt->second.ID != 0)
+            {
+                sIt->second.hash = pIt->second.hash;
+                sIt->second.nHeight = pIt->second.nHeight;
+                sIt->second.vchPubKey = pIt->second.vchPubKey;
+                for(int c = 0; c < pIt->second.OpCount; c++)
+                {
+                    sIt->second.nTally[c].POS = pIt->second.nTally[c].POS;
+                    sIt->second.nTally[c].FPOS = pIt->second.nTally[c].FPOS;
+                    sIt->second.nTally[c].POW = pIt->second.nTally[c].POW;
+                    sIt->second.nTally[c].D4L = pIt->second.nTally[c].D4L;
+                }
+                pIt++;
+            }
 
         }
         pcursor->close();
@@ -765,6 +893,6 @@ bool CVoteDB::Recover(CDBEnv& dbenv, std::string filename, bool fOnlyKeys)
 */
 bool CVoteDB::Recover(CDBEnv& dbenv, std::string filename)
 {
-    return true; // CVoteDB::Recover(dbenv, filename, false);
+    return false; // CVoteDB::Recover(dbenv, filename, false);
 }
 

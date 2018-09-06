@@ -11,19 +11,20 @@
 #include <base58.h>
 #include <votedb.h>
 
-
 using namespace std;
 
-const size_t POLL_ID_SIZE        = 4;
-const size_t POLL_NAME_SIZE      = 20;
-const size_t POLL_QUESTION_SIZE  = 100;
-const size_t POLL_OPTION_SIZE    = 45;
-const size_t POLL_FLAG_SIZE      = 1;
-const size_t POLL_TIME_SIZE      = 2;
-const size_t POLL_OPTION_COUNT   = 6;
-const size_t POLL_PKEY_SIZE      = 65;
-const size_t POLL_INFO_SIZE      = 2U;
-const size_t POLL_HEADER_SIZE    = POLL_INFO_SIZE + POLL_ID_SIZE + POLL_FLAG_SIZE + (2*POLL_TIME_SIZE);
+static const uint64_t POLL_CONSENSUS_PRECISION = 10000000;
+
+static const size_t POLL_ID_SIZE        = 4;
+static const size_t POLL_NAME_SIZE      = 20;
+static const size_t POLL_QUESTION_SIZE  = 100;
+static const size_t POLL_OPTION_SIZE    = 45;
+static const size_t POLL_FLAG_SIZE      = 1;
+static const size_t POLL_TIME_SIZE      = 2;
+static const size_t POLL_OPTION_COUNT   = 6;
+static const size_t POLL_PKEY_SIZE      = 65;
+static const size_t POLL_INFO_SIZE      = 2U;
+static const size_t POLL_HEADER_SIZE    = POLL_INFO_SIZE + POLL_ID_SIZE + POLL_FLAG_SIZE + (2*POLL_TIME_SIZE);
 
 
 typedef uint32_t CPollID;
@@ -46,6 +47,17 @@ struct CVoteBallot
     COptionID OpSelection;
 };
 
+struct CVoteTally
+{
+    uint32_t POS;
+    uint32_t FPOS;
+    uint32_t POW;
+    uint32_t D4L;
+
+    CVoteTally(){ POS =0; FPOS=0; POW=0; D4L=0; }
+    ~CVoteTally() {}
+};
+
 struct CVotePoll
 {
     CVotePoll(){ clear(); }
@@ -53,7 +65,7 @@ struct CVotePoll
 
     void pollCopy(const CVotePoll& poll);
 
-    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0; nTally = 0;}
+    void clear() {ID = 0; Name = ""; Flags = 0; Start = 0; End = 0; Question = ""; OpCount = 0; hash = 0; nHeight = 0;}
     CPollID ID;                             // 4 Bytes
     CPollName Name;                         // 20 Bytes
     CPollFlags Flags;                       // 1 Byte
@@ -65,8 +77,31 @@ struct CVotePoll
 
     uint256 hash;                           // Store the poll's transaction information.
     uint64_t nHeight;                       // Set the height that the poll got accepted into the blockchain.
-    uint64_t nTally;                        // Store the current tally on the blockchain.
+    vector<CVoteTally> nTally;              // Store the current tally on the blockchain.
     vector<unsigned char> vchPubKey;        // Pubkey of Poll Creator.
+
+    bool onlyPOS();
+    bool acceptPOS();
+    bool acceptFPOS();
+    bool acceptPOW();
+    bool acceptD4L();
+    bool isFund();
+    bool isBounty();
+    bool isP2POLL();
+    bool isClaim();
+    bool isConsensus();
+    bool isComplete();
+    bool isLocal();
+    bool isMine();
+    bool isValid();
+    bool hasEnded();
+    bool haveParent();
+    bool parentEnded();
+    bool isApproved();
+    bool isFullyApproved();
+
+private:
+    uint64_t getConsensus();
 };
 
 typedef union { unsigned char b[8]; uint64_t n; } nHeightByte;
@@ -109,7 +144,7 @@ private:
 class CVote : public CWallet
 {
 private:
-    bool havePoll;          // Poll is in the chain AND in our local stack.
+    bool readyPoll;          // Poll is in the chain AND in our local stack.
     uint8_t optionCount;
     uint8_t ballotCount;
 
