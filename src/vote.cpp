@@ -8,6 +8,7 @@
 #include "vote.h"
 #include "init.h"
 #include "util.h"
+#include "zlib.h"
 #include <random>
 #include <string>
 #include <iostream>
@@ -45,7 +46,7 @@ void CVotePoll::pollCopy(const CVotePoll& poll)
     Flags = poll.Flags;
     OpCount = poll.OpCount;
 
-    assert(poll.Option.size() == poll.nTally.size());
+    assert(poll.Option.size() == poll.nTally.size()); // Vectorize them together later.
 
     vector<CVoteTally>::const_iterator ti = poll.nTally.begin();
     for (vector<CPollOption>::const_iterator i = poll.Option.begin(); i != poll.Option.end() ; i++)
@@ -132,7 +133,7 @@ bool CVotePoll::isConsensus()
     if(pOpt == Option.end() || Option.size() != 3 || nTally.size() != 3)
         return false;
 
-    pOpt++; // Option 1 is reserved for PubKey if it's a claim poll;
+    pOpt++; // Option 1 is overloaded to hold the Parent PollID if it's a claim poll;
     if(string(pOpt->data()) != "Approve.")
         return false;
     pOpt++;
@@ -515,82 +516,91 @@ VDBErrors CVote::LoadVoteDB(bool& fFirstRunRet)
     return VDB_LOAD_OK;
 }
 
-bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256& hash, const int& nHeight, const bool &checkOnly)
+bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, const int& nHeight, const bool &checkOnly)
 {
     
-    // Poll Construction - OP_VOTE(1) + POLLID(4) + FLAGS(1) + START(2) + END(2) + SIZE_OF_COMPRESSED_DATA
+    // Let's catch this one early.
+    // POLL_HEADER + SIZEOF(COMPRESSED_NEWPOLL) + Z_HEADER + Z_ADLER32
+    if (rawPoll.size() < POLL_HEADER_SIZE + 5 + 2 + 4) { printf("[processRawPoll]: Illegal RawPoll.\n"); return false; }
+    if (rawPoll[POLL_HEADER_SIZE] != 0x78) { printf("[processRawPoll]: Illegal Z_CMF."); return false; }
+    if (rawPoll[POLL_HEADER_SIZE+1] != 0xda) { printf("[processRawPoll]: Rejecting unofficial Z_FLG.\n"); return false; }
+
+    // RawPoll Construction - POLL_HEADER + POLLID + FLAGS + START + END + SIZE_OF_COMPRESSED_DATA
 
     // Check that we have a good poll.
-    vector<CRawPoll>::const_iterator rIt = rawPoll.begin();
-    uint8_t opCount = ((rIt->n >> 4) & (uint8_t)7); // 0b00000111
+    vector<unsigned char>::const_iterator rIt = rawPoll.begin();
+    uint8_t opCount = ((*rIt >> 4) & (uint8_t)7); // 0b00000111
 
-    // Filthy hack to ensure consistency regardless of Big/Little Endian. Do Something better later.
-    char b[2] { 0, 0 };
-    memcpy(&b[0], &rIt->n, 2); b[0] &= 0x0F;
+    // Grab our Big Endian and convert it back for dataSize.
+    unsigned char b[2] { 0, 0 };
+    memcpy(&b[0], &*rIt, 2); b[0] &= 0x0F;
 
     uint16_t dataSize;
-    dataSize = (((uint16_t)b[0]) << 8) + b[1];
+    dataSize = (b[0] << 8) + b[1];
 
-    const size_t pollSize = POLL_HEADER_SIZE + dataSize; // 1(infoBit) + 4(PollID) + 20(Name) + 100(Question) + 2(Start) + 2(End) + 1(flags) + (OpCount * Size_Of_Options)
+    const size_t pollSize = POLL_HEADER_SIZE + dataSize;
     if (pollSize > MAX_VOTE_SIZE) { printf("[processRawPoll: Poll Exceeds limit. \n"); return false; }
     if (rawPoll.size() != pollSize) { printf("[processRawPoll: Poll has invalid size.\n"); return false; }
-    // if (((pollFlags >> 1) & (uint8_t)120) != critFlags) { printf("[processRawPoll]: Reported Critical Flags do not match raw poll."); return false; }
-    bool success = true;
-    CVotePoll *checkPoll = new CVotePoll();
-
-    rIt += POLL_INFO_SIZE;
 
     if (!checkOnly)
     {
         try {
+            bool success = true;
+            CVotePoll *checkPoll = new CVotePoll();
 
+            rIt += POLL_INFO_SIZE;
             success = false;
 
-            memcpy(&checkPoll->ID, &rIt->n, POLL_ID_SIZE);
+            memcpy(&checkPoll->ID, &*rIt, POLL_ID_SIZE);
             rIt += POLL_ID_SIZE;
 
-            memcpy(&checkPoll->Flags, &rIt->n, POLL_FLAG_SIZE); rIt += POLL_FLAG_SIZE;
-            memcpy(&checkPoll->Start, &rIt->n, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
-            memcpy(&checkPoll->End, &rIt->n, POLL_TIME_SIZE ); rIt += POLL_TIME_SIZE;
+            memcpy(&checkPoll->Flags, &*rIt, POLL_FLAG_SIZE); rIt += POLL_FLAG_SIZE;
+            memcpy(&checkPoll->Start, &*rIt, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
+            memcpy(&checkPoll->End, &*rIt, POLL_TIME_SIZE ); rIt += POLL_TIME_SIZE;
 
-            vector<char> dCharPoll;
-            vector<char> cCharPoll(&rawPoll.begin()->c + POLL_HEADER_SIZE, &rawPoll.begin()->c + POLL_HEADER_SIZE + dataSize);
+            vector<unsigned char> dvchPoll;
+            vector<unsigned char> cvchPoll(&*rawPoll.begin() + POLL_HEADER_SIZE, &*rawPoll.begin() + POLL_HEADER_SIZE + dataSize);
 
-            charZip(cCharPoll, dCharPoll, true);
-            vector<CRawPoll>dRawPoll;
-            dRawPoll.resize(dCharPoll.size());
-            memcpy(&dRawPoll.begin()->c, &*dCharPoll.data(), dCharPoll.size());
-            vector<CRawPoll>::const_iterator cIt = dRawPoll.begin();
+            charZip(cvchPoll, dvchPoll, true);
 
-            if (dRawPoll.size() != POLL_NAME_SIZE + POLL_QUESTION_SIZE + (opCount * POLL_OPTION_SIZE) + POLL_PKEY_SIZE)
+            // Check our adler32 checksum.
+            char bEnd[4]; memcpy(&bEnd, &*rawPoll.end()-4, 4); // adler32 is in BigEndian on our compressed file.
+            char lEnd[4] = {bEnd[3], bEnd[2], bEnd[1], bEnd[0]};
+            uint32_t dAdler = *(reinterpret_cast <uint32_t*>(lEnd));
+
+            uint32_t vAdler = adler32(0L, Z_NULL, 0);
+            vAdler = adler32(vAdler, (Bytef *)dvchPoll.data(), dvchPoll.size());
+
+            if (vAdler != dAdler) { printf("[processRawPoll]: Adler32 check failed.\n"); return false;}
+
+            vector<unsigned char>::const_iterator cIt = dvchPoll.begin();
+
+            if (dvchPoll.size() != POLL_NAME_SIZE + POLL_QUESTION_SIZE + (opCount * POLL_OPTION_SIZE) + POLL_ADDRESS_SIZE)
             { printf("[Process RawPoll]: Uncompressed does not match initially reported size.\n"); return false; }
 
             char charName[POLL_NAME_SIZE];
-            memcpy(&charName, &cIt->c, POLL_NAME_SIZE);
+            memcpy(&charName, &*cIt, POLL_NAME_SIZE);
             checkPoll->Name = charName;
             cIt += POLL_NAME_SIZE;
 
             char charQuestion[POLL_QUESTION_SIZE];
-            memcpy(&charQuestion, &cIt->c, POLL_QUESTION_SIZE);
+            memcpy(&charQuestion, &*cIt, POLL_QUESTION_SIZE);
             checkPoll->Question = charQuestion;
             cIt += POLL_QUESTION_SIZE;
 
             for ( uint8_t i = 0 ; i < opCount ; i++ )
             {
                 char pOpt[POLL_OPTION_SIZE];
-                memcpy(&pOpt, &cIt->c, POLL_OPTION_SIZE);
+                memcpy(&pOpt, &*cIt, POLL_OPTION_SIZE);
                 checkPoll->Option.push_back(string(pOpt));
-                checkPoll->nTally.push_back(*(new CVoteTally));
                 cIt += POLL_OPTION_SIZE;
             }
 
-            unsigned char charPubKey[POLL_PKEY_SIZE];
-            memcpy(&charPubKey, &cIt->n, POLL_PKEY_SIZE);
+            checkPoll->nTally.resize(checkPoll->Option.size());
 
-            vector<unsigned char> holdKey(&charPubKey[0], &charPubKey[0] + POLL_PKEY_SIZE);
-            checkPoll->vchPubKey = holdKey;
-            checkPoll->vchPubKey.resize(strlen((char *)holdKey.data()));
-
+            unsigned char vchPubKey[POLL_ADDRESS_SIZE];
+            memcpy(&vchPubKey, &*cIt, POLL_ADDRESS_SIZE);
+            checkPoll->vchPubKey = vector<unsigned char>(&vchPubKey[0], &vchPubKey[0] + strlen((char *)vchPubKey));
 
             checkPoll->OpCount = checkPoll->Option.size();
             checkPoll->hash = hash;
@@ -610,7 +620,7 @@ bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256& hash, const 
 
     return true;
 }
-bool getRawPoll(vector<CRawPoll>& rawPoll)
+bool getRawPoll(vector<unsigned char>& rawPoll)
 {
     CVotePoll ourPoll;
 
@@ -620,54 +630,54 @@ bool getRawPoll(vector<CRawPoll>& rawPoll)
     ourPoll.Question.resize(POLL_QUESTION_SIZE);
     for (uint8_t i = 0; i < ourPoll.OpCount; i++)
         ourPoll.Option[i].resize(POLL_OPTION_SIZE);
-    ourPoll.vchPubKey.resize(POLL_PKEY_SIZE);
+    ourPoll.vchPubKey.resize(POLL_ADDRESS_SIZE);
 
     rawPoll.resize(MAX_VOTE_SIZE);
-    vector<CRawPoll>::iterator rIt = rawPoll.begin();
+    vector<unsigned char>::iterator rIt = rawPoll.begin();
 
     // rIt->n = (vIndex->current.poll->OpCount << 4);
 
     rIt += POLL_INFO_SIZE;
 
-    memcpy(&rIt->n, &ourPoll.ID, POLL_ID_SIZE); rIt += POLL_ID_SIZE;
-    memcpy(&rIt->n, &ourPoll.Flags, POLL_FLAG_SIZE); rIt += POLL_FLAG_SIZE;
-    memcpy(&rIt->n, &ourPoll.Start, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
-    memcpy(&rIt->n, &ourPoll.End, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
+    memcpy(&*rIt, &ourPoll.ID, POLL_ID_SIZE); rIt += POLL_ID_SIZE;
+    memcpy(&*rIt, &ourPoll.Flags, POLL_FLAG_SIZE); rIt += POLL_FLAG_SIZE;
+    memcpy(&*rIt, &ourPoll.Start, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
+    memcpy(&*rIt, &ourPoll.End, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
 
-    vector<CRawPoll>crushRaw;
-    crushRaw.resize(POLL_NAME_SIZE + POLL_QUESTION_SIZE + (ourPoll.OpCount * POLL_OPTION_SIZE) + POLL_PKEY_SIZE);
-    vector<CRawPoll>::iterator cIt = crushRaw.begin();
+    vector<unsigned char>crushRaw;
+    crushRaw.resize(POLL_NAME_SIZE + POLL_QUESTION_SIZE + (ourPoll.OpCount * POLL_OPTION_SIZE) + POLL_ADDRESS_SIZE);
+    vector<unsigned char>::iterator cIt = crushRaw.begin();
 
-    memcpy(&cIt->c, &*ourPoll.Name.c_str(), POLL_NAME_SIZE); cIt += POLL_NAME_SIZE;
-    memcpy(&cIt->c, &*ourPoll.Question.c_str(), POLL_QUESTION_SIZE); cIt += POLL_QUESTION_SIZE;
+    memcpy(&*cIt, &*ourPoll.Name.c_str(), POLL_NAME_SIZE); cIt += POLL_NAME_SIZE;
+    memcpy(&*cIt, &*ourPoll.Question.c_str(), POLL_QUESTION_SIZE); cIt += POLL_QUESTION_SIZE;
 
     for (vector<CPollOption>::const_iterator it = ourPoll.Option.begin(); it < ourPoll.Option.end(); it++)
-    { memcpy(&cIt->c, &*it->c_str(), POLL_OPTION_SIZE); cIt += POLL_OPTION_SIZE; }
+    { memcpy(&*cIt, &*it->c_str(), POLL_OPTION_SIZE); cIt += POLL_OPTION_SIZE; }
 
-    memcpy(&cIt->n, &*ourPoll.vchPubKey.begin(), POLL_PKEY_SIZE);
+    memcpy(&*cIt, &*ourPoll.vchPubKey.begin(), POLL_ADDRESS_SIZE);
 
-    vector<char> crush(&crushRaw[0].c, &crushRaw[0].c + crushRaw.size());
-    vector<char> boom;
-    vector<char> check;
+    vector<unsigned char> crush(&crushRaw[0], &crushRaw[0] + crushRaw.size());
+    vector<unsigned char> boom;
+    vector<unsigned char> check;
 
     charZip(crush, check);
     charZip(check, boom, true);
 
-    int zSuccess = strcmp(crush.data(), boom.data());
+    bool zSuccess = (crush==boom);
 
-    if (zSuccess == 0)
+    if (zSuccess)
     {
         rIt -= POLL_HEADER_SIZE;
         int16_t compressedSize = (int16_t)check.size();
 
-        // Filthy hack to ensure consistency regardless of Big/Little Endian. Do Something better later.
+        // We Want Big Endian here because we'll be overloading b[0] with a flag and our opcount.
         char b[2]; b[0] = compressedSize >> 8; b[1] = (compressedSize & 0x00FF);
 
-        memcpy(&rIt->n, &b[0], 2);
-        rIt->n |= (1U << 7 );  //We are a VotePoll.
-        rIt->n |= (ourPoll.OpCount << 4);
+        memcpy(&*rIt, &b[0], 2);
+        *rIt |= (1U << 7 );  //We are a VotePoll.
+        *rIt |= (ourPoll.OpCount << 4);
         rIt += POLL_HEADER_SIZE;
-        memcpy(&rIt->c, &*check.data(), check.size());
+        memcpy(&*rIt, &*check.data(), check.size());
 
         // vector<CRawPoll> temp(&rawPoll.begin(), &rawPoll.begin() + compressedSize + POLL_HEADER_SIZE);
         rawPoll.resize(compressedSize + POLL_HEADER_SIZE);
