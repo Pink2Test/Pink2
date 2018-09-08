@@ -53,8 +53,8 @@ enum txnouttype
 struct CPollIDDest : public std::vector<unsigned char>
 {
     uint32_t ID;
-    CPollIDDest() : ID(0) {}
-    CPollIDDest(const uint32_t &in) : ID(in) { memcpy(&*this, &ID, 4); }
+    CPollIDDest() : ID(0) {this->resize(4, '\0');}
+    CPollIDDest(const uint32_t &in) : ID(in) { this->resize(4); memcpy(&*this, &ID, 4); }
     CPollIDDest(std::vector<unsigned char> &in) : ID(0) { assert(in.size() == 4); memcpy(&ID, &in, 4); }
 };
 
