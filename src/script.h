@@ -44,8 +44,18 @@ enum txnouttype
     TX_SCRIPTHASH,
     TX_VOTEPOLL,
     TX_VOTEBALLOTS,
+    TX_PAY2POLL,
+    TX_D4LBALLOT,
     TX_MULTISIG,
     TX_NULL_DATA,
+};
+
+struct CPollIDDest : public std::vector<unsigned char>
+{
+    uint32_t ID;
+    CPollIDDest() : ID(0) {}
+    CPollIDDest(const uint32_t &in) : ID(in) { memcpy(&*this, &ID, 4); }
+    CPollIDDest(std::vector<unsigned char> &in) : ID(0) { assert(in.size() == 4); memcpy(&ID, &in, 4); }
 };
 
 class CNoDestination {
@@ -60,7 +70,7 @@ public:
  *  * CScriptID: TX_SCRIPTHASH destination
  *  A CTxDestination is the internal data type encoded in a CBitcoinAddress
  */
-typedef boost::variant<CNoDestination, CKeyID, CScriptID, CStealthAddress> CTxDestination;
+typedef boost::variant<CNoDestination, CKeyID, CScriptID, CPollIDDest, CStealthAddress> CTxDestination;
 
 const char* GetTxnOutputType(txnouttype t);
 
@@ -203,9 +213,9 @@ enum opcodetype
 
     // template matching params
     OP_SMALLDATA = 0xf9,
-    OP_LARGEDATA = 0xfc,
     OP_SMALLINTEGER = 0xfa,
     OP_PUBKEYS = 0xfb,
+    OP_POLLID = 0xfc,
     OP_PUBKEYHASH = 0xfd,
     OP_PUBKEY = 0xfe,
 
@@ -595,7 +605,7 @@ public:
 
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType);
-bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet, std::vector<char> &vVoteRet);
+bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, std::vector<std::vector<unsigned char> >& vSolutionsRet);
 int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned char> >& vSolutions);
 bool IsStandard(const CScript& scriptPubKey, txnouttype& whichType);
 bool IsMine(const CKeyStore& keystore, const CScript& scriptPubKey);
