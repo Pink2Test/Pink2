@@ -7,11 +7,6 @@
 
 
 #include "db.h"
-#include "base58.h"
-
-//class CKeyPool;
-//class CAccount;
-//class CAccountingentry;
 
 /** Error statuses for the Vote database */
 enum VDBErrors

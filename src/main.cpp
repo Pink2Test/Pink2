@@ -398,11 +398,10 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         const CTxOut& prev = GetOutputFor(vin[i], mapInputs);
 
         vector<vector<unsigned char> > vSolutions;
-        vector<char> vVoteRet;
         txnouttype whichType;
         // get the scriptPubKey corresponding to this input:
         const CScript& prevScript = prev.scriptPubKey;
-        if (!Solver(prevScript, whichType, vSolutions, vVoteRet))
+        if (!Solver(prevScript, whichType, vSolutions))
             return false;
         int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
         if (nArgsExpected < 0)
@@ -423,9 +422,8 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
                 return false;
             CScript subscript(stack.back().begin(), stack.back().end());
             vector<vector<unsigned char> > vSolutions2;
-            vector<char> vVoteRet;
             txnouttype whichType2;
-            if (!Solver(subscript, whichType2, vSolutions2, vVoteRet))
+            if (!Solver(subscript, whichType2, vSolutions2))
                 return false;
             if (whichType2 == TX_SCRIPTHASH)
                 return false;
@@ -2569,12 +2567,11 @@ bool CBlock::CheckBlockSignature() const
         return vchBlockSig.empty();
 
     vector<valtype> vSolutions;
-    vector<char> vVoteRet;
     txnouttype whichType;
 
     const CTxOut& txout = vtx[1].vout[1];
 
-    if (!Solver(txout.scriptPubKey, whichType, vSolutions, vVoteRet))
+    if (!Solver(txout.scriptPubKey, whichType, vSolutions))
         return false;
 
     if (whichType == TX_PUBKEY)

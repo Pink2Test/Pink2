@@ -331,7 +331,7 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
 
     // Rawpoll prototype encode/decode for platform testing. Not the final version.
     bool success = false;
-    vector<CRawPoll> rawPoll;
+    vector<unsigned char> rawPoll;
     if (getRawPoll(rawPoll))
     {
         if(processRawPoll(rawPoll, vIndex->current.poll->hash, vIndex->current.poll->nHeight, false))

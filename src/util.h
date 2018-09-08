@@ -214,7 +214,7 @@ std::string FormatSubVersion(const std::string& name, int nClientVersion, const 
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 void runCommand(std::string strCommand);
 uint32_t rGen32();
-void charZip(std::vector<char>& charIn, std::vector<char>& charOut, bool decompress = false);
+void charZip(std::vector<unsigned char> &charIn, std::vector<unsigned char> &charOut, bool decompress = false);
 
 
 

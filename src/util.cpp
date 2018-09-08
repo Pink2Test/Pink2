@@ -1376,11 +1376,11 @@ uint32_t rGen32()
     return range(random);
 }
 
-void charZip(std::vector<char>& charIn, std::vector<char>& charOut, bool decompress)
+void charZip(std::vector<unsigned char>& charIn, std::vector<unsigned char>& charOut, bool decompress)
 {
     if (!decompress)
     {
-        char crush[16384];
+        unsigned char crush[16384];
 
         z_stream shrink;
         shrink.zalloc = Z_NULL;
@@ -1397,11 +1397,11 @@ void charZip(std::vector<char>& charIn, std::vector<char>& charOut, bool decompr
         deflateEnd(&shrink);
 
         charOut.resize((size_t)shrink.total_out);
-        std::vector<char> holdChar(crush, crush + shrink.total_out);
+        std::vector<unsigned char> holdChar(crush, crush + shrink.total_out);
         charOut = holdChar;
 
     } else {
-        char boom[16384];
+        unsigned char boom[16384];
 
         z_stream blow;
         blow.zalloc = Z_NULL;
@@ -1418,7 +1418,7 @@ void charZip(std::vector<char>& charIn, std::vector<char>& charOut, bool decompr
         inflateEnd(&blow);
 
         charOut.resize((size_t)blow.total_out);
-        std::vector<char> holdChar(boom, boom + blow.total_out);
+        std::vector<unsigned char> holdChar(boom, boom + blow.total_out);
         charOut = holdChar;
 
     }

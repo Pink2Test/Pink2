@@ -8,7 +8,6 @@
 
 #include <wallet.h>
 #include <main.h>
-#include <base58.h>
 #include <votedb.h>
 
 using namespace std;
@@ -22,7 +21,7 @@ static const size_t POLL_OPTION_SIZE    = 45;
 static const size_t POLL_FLAG_SIZE      = 1;
 static const size_t POLL_TIME_SIZE      = 2;
 static const size_t POLL_OPTION_COUNT   = 6;
-static const size_t POLL_PKEY_SIZE      = 65;
+static const size_t POLL_ADDRESS_SIZE   = 33; // All polls use PubKeyHash, aka Address.
 static const size_t POLL_INFO_SIZE      = 2U;
 static const size_t POLL_HEADER_SIZE    = POLL_INFO_SIZE + POLL_ID_SIZE + POLL_FLAG_SIZE + (2*POLL_TIME_SIZE);
 
@@ -34,8 +33,6 @@ typedef string CPollQuestion;
 typedef uint8_t COptionID;
 typedef string CPollOption;
 typedef uint8_t CPollFlags;
-
-typedef union { unsigned char n; char c; } CRawPoll; // For the blockchain.
 
 struct CVoteBallot
 {
@@ -203,9 +200,9 @@ int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight = pindexBest-
 CPollTime GetPollTime2(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
-bool processRawPoll(const vector<CRawPoll>& rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true);
+bool processRawPoll(const vector<unsigned char> &rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true);
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
-bool getRawPoll(vector<CRawPoll>& rawPoll);
+bool getRawPoll(vector<unsigned char>& rawPoll);
 
 
 #endif // VOTE_H
