@@ -6,9 +6,9 @@
 #ifndef VOTE_H
 #define VOTE_H
 
-#include <wallet.h>
-#include <main.h>
-#include <votedb.h>
+#include "wallet.h"
+#include "main.h"
+#include "votedb.h"
 
 using namespace std;
 
