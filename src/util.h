@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <random>
 
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>

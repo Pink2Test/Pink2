@@ -584,23 +584,36 @@ public:
     std::string ToString(bool fShort=false) const
     {
         std::string str;
+        const char *SPACE = " ";
         opcodetype opcode;
         std::vector<unsigned char> vch;
         const_iterator pc = begin();
+        bool ignoreOpcodes = false;
         while (pc < end())
         {
-            if (!str.empty())
-                str += " ";
-            if (!GetOp(pc, opcode, vch))
-            {
-                str += "[error]";
-                return str;
-            }
-            if (0 <= opcode && opcode <= OP_PUSHDATA4)
-                str += fShort? ValueString(vch).substr(0, 10) : ValueString(vch);
-            else
-                str += GetOpName(opcode);
+            if (!ignoreOpcodes) {
+                if (!GetOp(pc, opcode, vch))
+                {
+                    str += "[error]";
+                    return str;
+                }
+                if (0 <= opcode && opcode <= OP_PUSHDATA4)
+                    str += fShort? ValueString(vch).substr(0, 10) : ValueString(vch);
+                else
+                {
+                    str += GetOpName(opcode);
+                    str += SPACE;
+                    if (str == "OP_VOTE ")
+                    {
+                        str += "DATA{";
+                        ignoreOpcodes = true;
+                    }
+                }
+            } else
+                str += *pc++;
         }
+        if (ignoreOpcodes)
+            str += "}";
         return str;
     }
 
