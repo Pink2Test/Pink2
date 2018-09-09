@@ -233,6 +233,7 @@ public:
         return EncodeBase58Check(vch);
     }
 
+
     int CompareTo(const CBase58Data& b58) const
     {
         if (nVersion < b58.nVersion) return -1;

@@ -1677,11 +1677,22 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
     }
     case TX_VOTEPOLL:
     {
-        return false; // We do need to know this. Code later.
+        vector<unsigned char> vchPollID(scriptPubKey.begin() + 1 + POLL_INFO_SIZE,
+                                         scriptPubKey.begin() + 1 + POLL_INFO_SIZE + POLL_ID_SIZE);
+        CPollIDDest pollID(vchPollID);
+        PollStack::const_iterator it = vIndex->pollCache.find(pollID.ID);
+        if (it != vIndex->pollCache.end() && it->second.strAddress.size() == 34)
+        {
+            CBitcoinAddress addr(it->second.strAddress);
+            if (addr.GetKeyID(keyID))
+                return keystore.HaveKey(keyID);
+        }
+        return false;
     }
     case TX_VOTEBALLOTS:
     {
-        return false; // We do need to know this. Code later.
+         // we don't need to keep track of our non D4L ballots as they're included in our proof blocks.
+        return false;
     }
     case TX_PAY2POLL:
         keyID = CKeyID(uint160(vSolutions[0]));
@@ -2096,8 +2107,9 @@ bool CScript::IsPayToScriptHash() const
 
 bool CScript::IsVotePoll() const
 {
-    // Polls are at least 175 bytes and lead with a byte that describes the data - 0b1XXXXXXX shows us it's a Poll and not a Ballot list.
-    return (this->size() > 175 &&
+    // Technically Valid Compressed Polls are at least 18 bytes and lead with a byte that describes the data
+    // - 0b1XXXXXXX shows us it's a Poll and not a Ballot list.
+    return (this->size() > 17 &&
             this->at(0) == OP_VOTE &&
             (this->at(1) & (1U << 7)));
 }

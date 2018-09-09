@@ -32,6 +32,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
+    string strAddress = "address";
 
     string option[7];
     string tallyPOS[7];
@@ -73,6 +74,8 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     if (!Write(make_pair(txhash, sPollID), sHash))
         success = false;
     if (!Write(make_pair(height, sPollID), sPollHeight))
+        success = false;
+    if (!Write(make_pair(strAddress, sPollID), votePoll.strAddress))
         success = false;
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order
@@ -117,6 +120,7 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
+    string strAddress = "address";
 
     string option[7];
     string tallyPOS[7];
@@ -151,6 +155,8 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     if (Erase(make_pair(txhash, sPollID)))
         success = true;
     if (Erase(make_pair(height, sPollID)))
+        success = true;
+    if (Erase(make_pair(strAddress, sPollID)))
         success = true;
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order
@@ -192,6 +198,7 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
+    string strAddress = "address";
 
     string option[7];
     string tallyPOS[7];
@@ -249,6 +256,10 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
         readAnything = true;
     }
     if (!Read(make_pair(question, sPollID), votePoll.Question))
+        success = false;
+    else
+        readAnything = true;
+    if (!Read(make_pair(strAddress, sPollID), votePoll.strAddress))
         success = false;
     else
         readAnything = true;
@@ -505,6 +516,19 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
                     voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
+        else if (strType.rfind("address", 0) == 0)
+        {
+            ssValue >> activePoll.strAddress;
+
+            size_t typeLen = strlen("address");
+            if (strType.size() == typeLen)
+            {
+                if (stack.pIt != voteIndex->pollCache.end())
+                    stack.poll->strAddress = activePoll.strAddress;
+                else
+                    voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            }
+        }
         else if (strType.rfind("option", 0) == 0)
         {
             string strPollOption;
@@ -568,7 +592,8 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
             string strTally;
             string strTallyType = strType.substr(1, strType.size() - 2);
             uint8_t nTally = (uint8_t)stoi(strType.substr(strType.size() - 1, 1));
-            uint32_t *tallyPoint;
+            uint32_t dummyPoint = 0;
+            uint32_t *tallyPoint = &dummyPoint;
 
             ssValue >> strTally;
 
@@ -677,7 +702,7 @@ VDBErrors CVoteDB::LoadVote(CVote* voteIndex)
             {
                 sIt->second.hash = pIt->second.hash;
                 sIt->second.nHeight = pIt->second.nHeight;
-                sIt->second.vchPubKey = pIt->second.vchPubKey;
+                sIt->second.strAddress = pIt->second.strAddress;
                 for(int c = 0; c < pIt->second.OpCount; c++)
                 {
                     sIt->second.nTally[c].POS = pIt->second.nTally[c].POS;

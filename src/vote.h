@@ -21,7 +21,7 @@ static const size_t POLL_OPTION_SIZE    = 45;
 static const size_t POLL_FLAG_SIZE      = 1;
 static const size_t POLL_TIME_SIZE      = 2;
 static const size_t POLL_OPTION_COUNT   = 6;
-static const size_t POLL_ADDRESS_SIZE   = 33; // All polls use PubKeyHash, aka Address.
+static const size_t POLL_ADDRESS_SIZE   = 34; // Standard addresses only for now.
 static const size_t POLL_INFO_SIZE      = 2U;
 static const size_t POLL_HEADER_SIZE    = POLL_INFO_SIZE + POLL_ID_SIZE + POLL_FLAG_SIZE + (2*POLL_TIME_SIZE);
 
@@ -75,7 +75,7 @@ struct CVotePoll
     uint256 hash;                           // Store the poll's transaction information.
     uint64_t nHeight;                       // Set the height that the poll got accepted into the blockchain.
     vector<CVoteTally> nTally;              // Store the current tally on the blockchain.
-    vector<unsigned char> vchPubKey;        // Pubkey of Poll Creator.
+    string strAddress;                      // Owner address set by Poll Creator.
 
     bool onlyPOS();
     bool acceptPOS();
@@ -182,8 +182,8 @@ public:
     bool setPoll(CPollID& pollID);
     bool getPoll(CPollID& pollID, CVotePoll* poll);
     bool validatePoll(const CVotePoll *poll, const bool& fromBlockchain = false);
-    bool commitPoll(const CVotePoll *poll, const bool& fromBlockchain = false);
-    bool commitToChain(const CVotePoll* poll);
+    bool commitPoll(const CVotePoll *poll, string &hash, const bool& fromBlockchain = false);
+    bool commitToChain(const CVotePoll* poll, const string &fromAddress, string &hash);
 
     CVotePoll getActivePoll();
     VDBErrors LoadVoteDB(bool& fFirstRunRet);
@@ -200,9 +200,12 @@ int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight = pindexBest-
 CPollTime GetPollTime2(const int64_t& uTime, const int& blockHeight = pindexBest->nHeight);
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
-bool processRawPoll(const vector<unsigned char> &rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true);
+bool processRawPoll(const vector<unsigned char> &rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true, const bool &fromBlockchain = false);
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
-bool getRawPoll(vector<unsigned char>& rawPoll);
+bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll *inPoll);
+
+void erasePoll(const uint256 &hash);
+void erasePoll(const CPollID& ID);
 
 
 #endif // VOTE_H

@@ -29,6 +29,7 @@ static const unsigned int MAX_BLOCK_SIZE = 1000000;
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
 static const unsigned int MAX_VOTE_SIZE = 466; // Max size of uncompressed poll.
+static const unsigned int FEEPOOL_RELEASE_RATE = 100000;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MIN_PEERS = 7; // Require a good connection to the network for staking.
@@ -544,10 +545,9 @@ public:
 
     bool IsVotePoll() const
     {
-        if (vout.size() > 0 && vout[0].scriptPubKey.size() > 0)
+        if (vout.size() > 0)
         {
-            CScript checkVote = vout[0].scriptPubKey;
-            return (checkVote.IsVotePoll());
+            return vout[0].scriptPubKey.IsVotePoll();
         }
         return false;
     }

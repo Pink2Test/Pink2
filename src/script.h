@@ -53,7 +53,7 @@ enum txnouttype
 struct CPollIDDest : public std::vector<unsigned char>
 {
     uint32_t ID;
-    CPollIDDest() : ID(0) {this->resize(4, '\0');}
+    CPollIDDest() : ID(0) { this->resize(4, '\0'); }
     CPollIDDest(const uint32_t &in) : ID(in) { this->resize(4); memcpy(&*this, &ID, 4); }
     CPollIDDest(std::vector<unsigned char> &in) : ID(0) { assert(in.size() == 4); memcpy(&ID, &in, 4); }
 };
@@ -388,13 +388,26 @@ public:
             unsigned short nSize = b.size();
             insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
         }
-        else
+        else if (b.size() <= 0xffffffff)
         {
             insert(end(), OP_PUSHDATA4);
             unsigned int nSize = b.size();
             insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
         }
         insert(end(), b.begin(), b.end());
+        return *this;
+    }
+
+    CScript& operator<=(const std::vector<unsigned char>& b)
+    {
+        if (b.size() > 2)
+        {
+            unsigned char tB[3]; memcpy(&tB[1], &b[0], 2);
+            tB[0] = tB[2]; tB[1] &= 0x0F;
+            uint16_t cSize; memcpy(&cSize, &tB[0], 2);
+            if (b.size() == 11U + cSize)
+                insert(end(), b.begin(), b.end());
+        }
         return *this;
     }
 

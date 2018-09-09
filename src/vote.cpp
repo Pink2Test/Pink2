@@ -63,7 +63,7 @@ void CVotePoll::pollCopy(const CVotePoll& poll)
 
 bool CVotePoll::isValid()
 {
-    return false;
+    return true; // for now.
 }
 
 bool CVotePoll::haveParent()
@@ -97,7 +97,7 @@ bool CVotePoll::hasEnded()
 bool CVotePoll::isComplete()
 {
     if (Name.size() < 2 || Question.size() < 6 || End <= Start ||
-        ID == 0 || strlen((char *)vchPubKey.data()) < 33)
+        ID == 0 || strAddress.size() < 34)
         return false;
 
     if (Option.size() > 1 && nHeight > 0 && hash > 0)
@@ -115,9 +115,14 @@ bool CVotePoll::isComplete()
 
 bool CVotePoll::isMine()
 {
-    // Is it valid? Do I have the private key for it? If not, is the poll local only (off chain)?
-    return ((CPubKey(vchPubKey).IsValid() && pwalletMain->HaveKey(CPubKey(vchPubKey).GetID())) ||
-            isLocal());
+    // Do I have the private key for it?
+    CKeyID pollKey;
+    if (CBitcoinAddress(strAddress).GetKeyID(pollKey))
+        return (pwalletMain->HaveKey(pollKey));
+
+
+    // If it's unset then it must be local and therefore mine... but should check anyway. It's cheap.
+    return isLocal();
 }
 
 bool CVotePoll::isLocal()
@@ -394,40 +399,100 @@ bool CVote::validatePoll(const CVotePoll* poll, const bool& fromBlockchain)
     CVotePoll *p = new CVotePoll();
     p->pollCopy(*poll);
 
-    if (fromBlockchain)
-        return p->isValid();
+    readyPoll = true;  // I wrote this weird, I know. I'll fix it all later.
 
-    readyPoll = true;
-
-    if (p->Start < p->End)
+    if (p->Start >= p->End)
         readyPoll = false;
+    if (p->strAddress.size() < 1)
+        readyPoll = false;
+    if (p->Question.size() < 1)
+        readyPoll = false;
+    if (p->Name.size() < 1)
+        readyPoll = false;
+    if (p->Option.size() < 1)
+        readyPoll = false;
+    if (p->Start < (GetPollTime2(pindexBest->nTime) + 1))
+        readyPoll = false;
+
     if (p->isClaim() && !fTestNet)
     {
         if(p->Start < GetPollTime2(GetAdjustedTime() + (24 * 7))) { readyPoll = false; }
         else if (p->Start < p->End + (24 * 14)) { readyPoll = false; }
-        else if (!p->haveParent() || !p->parentEnded()) { readyPoll = false; }
+        else if (p->haveParent() && p->parentEnded()) { readyPoll = false; }
     }
+
+    if (fromBlockchain)
+        readyPoll = p->isValid();
 
     delete p;
 
     return readyPoll;
 }
 
-bool CVote::commitPoll(const CVotePoll *poll, const bool &fromBlockchain)
+bool CVote::commitPoll(const CVotePoll *poll, string& hash, const bool &fromBlockchain)
 {
-    bool ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !fromBlockchain);
+    string fromAddress = ""; // Not yet supported.
+    bool ret = false;
+    if (this->pollCache.find(poll->ID) == this->pollCache.end() && fromBlockchain)
+        ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !fromBlockchain);
+
     if (ret)
-        this->pollStack.insert(make_pair(poll->ID, *poll));
+        this->pollCache.insert(make_pair(poll->ID, *poll));
+
 
     if (!fromBlockchain)
-        return commitToChain(poll);
+        return commitToChain(poll, fromAddress, hash);
 
     return ret;
 }
 
-bool CVote::commitToChain(const CVotePoll* poll)
+bool CVote::commitToChain(const CVotePoll* poll, const string& fromAddress, string& hash)
 {
-    return false; // we're getting there, but not yet.
+    CWalletTx wtx;
+    wtx.isPoll = true;
+
+    int64_t addressBalance = 0;
+    map<string, CBitcoinAddress> mapAccountAddresses;
+    if (fromAddress != "")
+    {
+        CKeyID fromKey;
+        if (CBitcoinAddress(fromAddress).GetKeyID(fromKey) && pwalletMain->HaveKey(fromKey)) // This address belongs to me
+        {
+            //CTxDestination fromDest = fromKey;
+            addressBalance = pwalletMain->GetAddressBalance(fromKey);
+        }
+        else
+            return false;
+    }
+
+    if (pwalletMain->IsLocked() || fWalletUnlockStakingOnly)
+        return false;
+
+
+    // Note: From address DOES NOT WORK. Neither does FromAccount in rpc sendfrom for that matter. Go figure.
+    // I'll fix that later now that I know what the problem is (which is a bit of a mess, frankly. Accounting
+    // is terribly incomplete. No wonder it was depreciated. It's author never completed it as it is being used
+    // and it appears that it was ultimately replaced by coincontrol.)
+
+    if ((addressBalance > 101 * COIN && fromAddress != "") ||
+            (pwalletMain->GetBalance() < 101 * COIN && fromAddress == ""))
+        return false; // need at least 100 coins + txfee for poll.
+
+    vector<unsigned char>rawPoll;
+    getRawPoll(rawPoll, poll);
+
+    CScript scriptPoll = (CScript() << OP_VOTE) <= rawPoll;
+
+    string sNarr = "";
+    // Send
+    string strError = pwalletMain->SubmitPollTx(scriptPoll, wtx);
+    if (strError != "")
+        printf("[commitToChain]: Poll Commit Failed. Reason: %s \n", strError.c_str());
+
+    hash.clear();
+    hash = wtx.GetHash().GetHex();
+    return (bool)hash.size();
+    //return false; // we're getting there, but not yet.
 }
 
 int64_t GetPollTime(const CPollTime &pTime, const int &blockHeight)
@@ -516,7 +581,7 @@ VDBErrors CVote::LoadVoteDB(bool& fFirstRunRet)
     return VDB_LOAD_OK;
 }
 
-bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, const int& nHeight, const bool &checkOnly)
+bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, const int& nHeight, const bool &checkOnly, const bool &fromBlockchain)
 {
     
     // Let's catch this one early.
@@ -566,12 +631,12 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
             // Check our adler32 checksum.
             char bEnd[4]; memcpy(&bEnd, &*rawPoll.end()-4, 4); // adler32 is in BigEndian on our compressed file.
             char lEnd[4] = {bEnd[3], bEnd[2], bEnd[1], bEnd[0]};
-            uint32_t dAdler = *(reinterpret_cast <uint32_t*>(lEnd));
+            uint32_t *dAdler = reinterpret_cast <uint32_t*>(lEnd);
 
             uint32_t vAdler = adler32(0L, Z_NULL, 0);
             vAdler = adler32(vAdler, (Bytef *)dvchPoll.data(), dvchPoll.size());
 
-            if (vAdler != dAdler) { printf("[processRawPoll]: Adler32 check failed.\n"); return false;}
+            if (vAdler != *dAdler) { printf("[processRawPoll]: Adler32 check failed.\n"); return false;}
 
             vector<unsigned char>::const_iterator cIt = dvchPoll.begin();
 
@@ -598,18 +663,22 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
 
             checkPoll->nTally.resize(checkPoll->Option.size());
 
-            unsigned char vchPubKey[POLL_ADDRESS_SIZE];
-            memcpy(&vchPubKey, &*cIt, POLL_ADDRESS_SIZE);
-            checkPoll->vchPubKey = vector<unsigned char>(&vchPubKey[0], &vchPubKey[0] + strlen((char *)vchPubKey));
+            char charAddress[POLL_ADDRESS_SIZE];
+            memcpy(&charAddress, &*cIt, POLL_ADDRESS_SIZE);
+            checkPoll->strAddress = charAddress;
 
             checkPoll->OpCount = checkPoll->Option.size();
-            checkPoll->hash = hash;
             checkPoll->nHeight = nHeight;
+            checkPoll->hash = hash;
 
-            if (vIndex->validatePoll(checkPoll))
-                success = vIndex->commitPoll(checkPoll);
+            string strHash = "";
+            if (vIndex->validatePoll(checkPoll, fromBlockchain))
+                success = vIndex->commitPoll(checkPoll, strHash, fromBlockchain);
 
-            printf("Success. %u %s %s %u %u. \n", checkPoll->ID, checkPoll->Name.c_str(), checkPoll->Question.c_str(), checkPoll->Start, checkPoll->End);
+            if (!fromBlockchain)
+                checkPoll->hash.SetHex(strHash);
+
+            printf("Success. %u %s %s %u %u %s. \n", checkPoll->ID, checkPoll->Name.c_str(), checkPoll->Question.c_str(), checkPoll->Start, checkPoll->End, checkPoll->hash.GetHex().c_str());
 
             return success;
         } catch (...) {
@@ -620,17 +689,18 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
 
     return true;
 }
-bool getRawPoll(vector<unsigned char>& rawPoll)
+
+bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll* inPoll)
 {
     CVotePoll ourPoll;
 
-    ourPoll.pollCopy(*vIndex->current.poll);
+    ourPoll.pollCopy(*inPoll);
 
     ourPoll.Name.resize(POLL_NAME_SIZE);
     ourPoll.Question.resize(POLL_QUESTION_SIZE);
     for (uint8_t i = 0; i < ourPoll.OpCount; i++)
         ourPoll.Option[i].resize(POLL_OPTION_SIZE);
-    ourPoll.vchPubKey.resize(POLL_ADDRESS_SIZE);
+    ourPoll.strAddress.resize(POLL_ADDRESS_SIZE);
 
     rawPoll.resize(MAX_VOTE_SIZE);
     vector<unsigned char>::iterator rIt = rawPoll.begin();
@@ -654,7 +724,7 @@ bool getRawPoll(vector<unsigned char>& rawPoll)
     for (vector<CPollOption>::const_iterator it = ourPoll.Option.begin(); it < ourPoll.Option.end(); it++)
     { memcpy(&*cIt, &*it->c_str(), POLL_OPTION_SIZE); cIt += POLL_OPTION_SIZE; }
 
-    memcpy(&*cIt, &*ourPoll.vchPubKey.begin(), POLL_ADDRESS_SIZE);
+    memcpy(&*cIt, &*ourPoll.strAddress.c_str(), POLL_ADDRESS_SIZE);
 
     vector<unsigned char> crush(&crushRaw[0], &crushRaw[0] + crushRaw.size());
     vector<unsigned char> boom;
@@ -691,4 +761,45 @@ bool getRawPoll(vector<unsigned char>& rawPoll)
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly)
 {
     return false;
+}
+
+void erasePoll(const uint256 &hash)
+{
+    // best way to do it until I decide to make a txid->pollID map.
+    for (PollStack::iterator it = vIndex->pollCache.begin(); it != vIndex->pollCache.end(); it++)
+        if (it->second.hash == hash)
+        {
+            PollStack::iterator pIt = vIndex->pollStack.find(it->second.ID);
+            BallotStack::iterator bIt = vIndex->ballotStack.find(it->second.ID);
+
+            if (pIt != vIndex->pollStack.end()){
+                CVoteDB(vIndex->strWalletFile).EraseVote(pIt->second);
+                vIndex->pollStack.erase(pIt);
+            }
+            if (bIt != vIndex->ballotStack.end()) {
+                CVoteDB(vIndex->strWalletFile).EraseBallot(bIt->second);
+                vIndex->ballotStack.erase(bIt);
+            }
+            CVoteDB(vIndex->strWalletFile).EraseVote(it->second);
+            vIndex->pollCache.erase(it);
+        }
+}
+void erasePoll(const CPollID& ID)
+{
+    PollStack::iterator it = vIndex->pollCache.find(ID);
+    PollStack::iterator pIt = vIndex->pollStack.find(ID);
+    BallotStack::iterator bIt = vIndex->ballotStack.find(ID);
+
+    if (pIt != vIndex->pollStack.end()){
+        CVoteDB(vIndex->strWalletFile).EraseVote(pIt->second);
+        vIndex->pollStack.erase(pIt);
+    }
+    if (bIt != vIndex->ballotStack.end()) {
+        CVoteDB(vIndex->strWalletFile).EraseBallot(bIt->second);
+        vIndex->ballotStack.erase(bIt);
+    }
+    if (it != vIndex->pollCache.end()) {
+        CVoteDB(vIndex->strWalletFile).EraseVote(it->second);
+        vIndex->pollCache.erase(it);
+    }
 }
