@@ -2112,18 +2112,23 @@ bool CScript::IsPayToScriptHash() const
 bool CScript::IsVotePoll() const
 {
     // Technically Valid Compressed Polls are at least 18 bytes and lead with a byte that describes the data
-    // - 0b1XXXXXXX shows us it's a Poll and not a Ballot list.
-    return (this->size() > 17 &&
-            this->at(0) == OP_VOTE &&
+    // - 0b1XXXXXXX shows us it's a Poll and not a Ballot list. If begin != end necessary as size sometimes
+    // erroneously allows this to show true if the script is invalid in memory, resulting in a segfault.
+    if (this->begin() != this->end() && this->size() > 17) {
+    return  (this->at(0) == OP_VOTE &&
             (this->at(1) & (1U << 7)));
+    }
+    return false;
 }
 
 bool CScript::IsVoteBallots() const
 {
     // A single ballot is at least 7 bytes and lead with a byte that describes the data - 0b0XXXXXXX shows us it's a Ballot list and not a Poll.
-    return (this->size() > 7 &&
-            this->at(0) == OP_VOTE &&
+    if (this->begin() != this->end() && this->size() > 7) {
+    return (this->at(0) == OP_VOTE &&
             !(this->at(1) & (1U << 7)));
+    }
+    return false;
 }
 
 bool CScript::HasCanonicalPushes() const

@@ -45,6 +45,7 @@ void CVotePoll::pollCopy(const CVotePoll& poll)
     End = poll.End;
     Flags = poll.Flags;
     OpCount = poll.OpCount;
+    strAddress = poll.strAddress;
 
     assert(poll.Option.size() == poll.nTally.size()); // Vectorize them together later.
 
