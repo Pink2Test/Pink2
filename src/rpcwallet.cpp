@@ -1626,6 +1626,12 @@ public:
             obj.push_back(Pair("sigsrequired", nRequired));
         return obj;
     }
+
+    Object operator()(const CPollIDDest &pollID) const {
+        Object obj;
+        obj.push_back(Pair("PollID", to_string(pollID.ID)));
+        return obj;
+    }
     
     Object operator()(const CStealthAddress &stxAddr) const {
         Object obj;

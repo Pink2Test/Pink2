@@ -213,6 +213,8 @@ std::string FormatFullVersion();
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 void runCommand(std::string strCommand);
+uint32_t rGen32();
+void charZip(std::vector<unsigned char> &charIn, std::vector<unsigned char> &charOut, bool decompress = false);
 
 
 

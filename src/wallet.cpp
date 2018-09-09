@@ -663,9 +663,12 @@ bool CWallet::EraseFromWallet(uint256 hash)
     if (!fFileBacked)
         return false;
     {
-        LOCK(cs_wallet);
+        LOCK2(cs_wallet, vIndex->cs_wallet);
         if (mapWallet.erase(hash))
+        {
             CWalletDB(strWalletFile).EraseTx(hash);
+            erasePoll(hash);
+        }
     }
     return true;
 }
@@ -1512,7 +1515,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
         // txdb must be opened before the mapWallet lock
         CTxDB txdb("r");
         {
-            nFeeRet = nTransactionFee;
+            nFeeRet = wtxNew.isPoll ? nTransactionFee + VOTE_FEE : nTransactionFee;
 			if(fSplitBlock)
 				nFeeRet = COIN / 100;
             while (true)
@@ -1618,6 +1621,10 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
                             position--;
                         };
                     };
+
+                    if (position->scriptPubKey.IsVotePoll())
+                        position++;
+
                     wtxNew.vout.insert(position, CTxOut(nChange, scriptChange));
                     nChangePos = std::distance(wtxNew.vout.begin(), position);
                 }
@@ -1650,6 +1657,8 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
                     continue;
                 }
 
+                nFeeRet += wtxNew.isPoll ? VOTE_FEE * COIN : 0;
+
                 // Fill vtxPrev by copying from previous transactions vtxPrev
                 wtxNew.AddSupportingTransactions(txdb);
                 wtxNew.fTimeReceivedIsTxTime = true;
@@ -1660,9 +1669,6 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
     }
     return true;
 }
-
-
-
 
 bool CWallet::CreateTransaction(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, CReserveKey& reservekey, int64_t& nFeeRet, const CCoinControl* coinControl)
 {
@@ -2883,8 +2889,18 @@ string CWallet::SendMoneyToDestination(const CTxDestination& address, int64_t nV
     return SendMoney(scriptPubKey, nValue, sNarr, wtxNew, fAskFee);
 }
 
+string CWallet::SubmitPollTx(CScript& scriptPubKey, CWalletTx& wtxNew)
+{
+    // Check fee
+    if (nTransactionFee + VOTE_FEE > GetBalance())
+        return _("Insufficient funds");
 
+    bool fAskFee = false;
+    string sNarr = "";
+    int64_t nValue = 0;
 
+    return SendMoney(scriptPubKey, nValue, sNarr, wtxNew, fAskFee);
+}
 
 DBErrors CWallet::LoadWallet(bool& fFirstRunRet)
 {
@@ -3261,6 +3277,45 @@ std::map<CTxDestination, int64_t> CWallet::GetAddressBalances()
     }
 
     return balances;
+}
+
+int64_t CWallet::GetAddressBalance(const CTxDestination& address)
+{
+    int64_t balance = 0;
+
+    {
+        LOCK(cs_wallet);
+        BOOST_FOREACH(PAIRTYPE(uint256, CWalletTx) walletEntry, mapWallet)
+        {
+            CWalletTx *pcoin = &walletEntry.second;
+
+            if (!pcoin->IsFinal() || !pcoin->IsTrusted())
+                continue;
+
+            if ((pcoin->IsCoinBase() || pcoin->IsCoinStake()) && pcoin->GetBlocksToMaturity() > 0)
+                continue;
+
+            int nDepth = pcoin->GetDepthInMainChain();
+            if (nDepth < (pcoin->IsFromMe() ? 0 : 1))
+                continue;
+
+            for (unsigned int i = 0; i < pcoin->vout.size(); i++)
+            {
+                CTxDestination addr;
+                if (!IsMine(pcoin->vout[i]))
+                    continue;
+                if(!ExtractDestination(pcoin->vout[i].scriptPubKey, addr))
+                    continue;
+
+                int64_t n = pcoin->IsSpent(i) ? 0 : pcoin->vout[i].nValue;
+
+                if (CBitcoinAddress(address).ToString() == CBitcoinAddress(addr).ToString())
+                    balance += n;
+            }
+        }
+    }
+
+    return balance;
 }
 
 set< set<CTxDestination> > CWallet::GetAddressGroupings()

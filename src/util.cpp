@@ -6,6 +6,7 @@
 #include "util.h"
 #include "sync.h"
 #include "version.h"
+#include "zlib.h"
 #include "ui_interface.h"
 #include <boost/algorithm/string/join.hpp>
 #include <boost/algorithm/string/case_conv.hpp> // for to_lower()
@@ -30,6 +31,8 @@ namespace boost {
 #include <openssl/crypto.h>
 #include <openssl/rand.h>
 #include <stdarg.h>
+#include <chrono>
+#include <string>
 
 #ifdef WIN32
 #ifdef _MSC_VER
@@ -1354,4 +1357,69 @@ bool NewThread(void(*pfn)(void*), void* parg)
         return false;
     }
     return true;
+}
+
+uint32_t rGen32()
+{
+    std::random_device rd;
+    std::default_random_engine rde(rd());
+    std::uniform_int_distribution<uint64_t> rdx(0, 0xFFFFFFFFFFFFFFFF);
+
+    std::chrono::system_clock::time_point t = std::chrono::system_clock::now();
+    std::chrono::system_clock::duration e = t.time_since_epoch();
+    uint64_t rseed = e.count();
+
+    std::seed_seq seed{rdx(rde),rseed};
+    std::default_random_engine random(seed);
+    std::uniform_int_distribution<uint32_t> range(0, 0xFFFFFFFF);
+
+    return range(random);
+}
+
+void charZip(std::vector<unsigned char>& charIn, std::vector<unsigned char>& charOut, bool decompress)
+{
+    if (!decompress)
+    {
+        unsigned char crush[16384];
+
+        z_stream shrink;
+        shrink.zalloc = Z_NULL;
+        shrink.opaque = Z_NULL;
+        shrink.zfree = Z_NULL;
+
+        shrink.next_in = (Bytef*)charIn.data();
+        shrink.next_out = (Bytef*)crush;
+        shrink.avail_in = (unsigned int)charIn.size();
+        shrink.avail_out = 16384;
+
+        deflateInit(&shrink, Z_BEST_COMPRESSION);
+        deflate(&shrink, Z_FINISH);
+        deflateEnd(&shrink);
+
+        charOut.resize((size_t)shrink.total_out);
+        std::vector<unsigned char> holdChar(crush, crush + shrink.total_out);
+        charOut = holdChar;
+
+    } else {
+        unsigned char boom[16384];
+
+        z_stream blow;
+        blow.zalloc = Z_NULL;
+        blow.opaque = Z_NULL;
+        blow.zfree = Z_NULL;
+
+        blow.next_in = (Bytef*)charIn.data();
+        blow.next_out = (Bytef*)boom;
+        blow.avail_in = (unsigned int)charIn.size();
+        blow.avail_out = 16384;
+
+        inflateInit(&blow);
+        inflate(&blow, Z_NO_FLUSH);
+        inflateEnd(&blow);
+
+        charOut.resize((size_t)blow.total_out);
+        std::vector<unsigned char> holdChar(boom, boom + blow.total_out);
+        charOut = holdChar;
+
+    }
 }

@@ -14,9 +14,11 @@ using namespace boost;
 #include "keystore.h"
 #include "bignum.h"
 #include "key.h"
+#include "init.h"
 #include "main.h"
 #include "sync.h"
 #include "util.h"
+#include "vote.h"
 
 bool CheckSig(vector<unsigned char> vchSig, vector<unsigned char> vchPubKey, CScript scriptCode, const CTransaction& txTo, unsigned int nIn, int nHashType);
 
@@ -103,6 +105,10 @@ const char* GetTxnOutputType(txnouttype t)
     case TX_PUBKEY: return "pubkey";
     case TX_PUBKEYHASH: return "pubkeyhash";
     case TX_SCRIPTHASH: return "scripthash";
+    case TX_VOTEPOLL: return "votepoll";
+    case TX_VOTEBALLOTS: return "voteballots";
+    case TX_PAY2POLL: return "pay2poll";
+    case TX_D4LBALLOT: return "d4lballot";
     case TX_MULTISIG: return "multisig";
     case TX_NULL_DATA: return "nulldata";
     }
@@ -406,9 +412,21 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                 // Control
                 //
                 case OP_NOP:
-                case OP_VOTE: case OP_NOP2: case OP_NOP3: case OP_NOP4: case OP_NOP5:
+                case OP_NOP2: case OP_NOP3: case OP_NOP4: case OP_NOP5:
                 case OP_NOP6: case OP_NOP7: case OP_NOP8: case OP_NOP9: case OP_NOP10:
                 break;
+                case OP_VOTE:
+                {
+                    bool fValue = false;
+                    if (vfExec.empty())
+                    {
+                        vector<unsigned char> rawPoll = stack[1];
+                        fValue = processRawPoll(rawPoll, uint256(0), 0);
+                    }
+                    vfExec.push_back(fValue);
+
+                }
+
 
                 case OP_IF:
                 case OP_NOTIF:
@@ -1301,8 +1319,17 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         // Bitcoin address tx, sender provides hash of pubkey, receiver provides signature and pubkey
         mTemplates.insert(make_pair(TX_PUBKEYHASH, CScript() << OP_DUP << OP_HASH160 << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG));
 
+        // Sender provides Fund PollID, receiver provides signature, pubkey, and Claim PollID
+        mTemplates.insert(make_pair(TX_PAY2POLL, CScript() << OP_POLLID << OP_VOTE << OP_DUP << OP_HASH160 << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG));
+
+        // Bitcoin address tx, sender provides hash of pubkey, receiver provides signature and pubkey
+        mTemplates.insert(make_pair(TX_D4LBALLOT, CScript() << OP_DUP << OP_HASH160 << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG << OP_POLLID << OP_SMALLINTEGER << OP_VOTE));
+
         // Sender provides N pubkeys, receivers provides M signatures
         mTemplates.insert(make_pair(TX_MULTISIG, CScript() << OP_SMALLINTEGER << OP_PUBKEYS << OP_SMALLINTEGER << OP_CHECKMULTISIG));
+
+        // Sender provides Fund PollID, receiver provides signature, pubkey, and Claim PollID
+        mTemplates.insert(make_pair(TX_PAY2POLL, CScript() << OP_POLLID << OP_VOTE << OP_DUP << OP_HASH160 << OP_PUBKEYHASH << OP_EQUALVERIFY << OP_CHECKSIG));
 
         // Empty, provably prunable, data-carrying output
         mTemplates.insert(make_pair(TX_NULL_DATA, CScript() << OP_RETURN));
@@ -1317,6 +1344,24 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
         typeRet = TX_SCRIPTHASH;
         vector<unsigned char> hashBytes(scriptPubKey.begin()+2, scriptPubKey.begin()+22);
         vSolutionsRet.push_back(hashBytes);
+        return true;
+    }
+
+    // Quickly identify that we have a poll and grab the bytes to validate through our poll system.
+    if (scriptPubKey.IsVotePoll())
+    {
+        typeRet = TX_VOTEPOLL;
+        vector<unsigned char> rawPoll(scriptPubKey.begin()+1, scriptPubKey.end());
+        vSolutionsRet.push_back(rawPoll);
+        return true;
+    }
+
+    // Quickly identify that we have ballots and grab the bytes to validate through our poll system.
+    if (scriptPubKey.IsVoteBallots())
+    {
+        typeRet = TX_VOTEBALLOTS;
+        vector<unsigned char> rawBallots(scriptPubKey.begin()+1, scriptPubKey.end());
+        vSolutionsRet.push_back(rawBallots);
         return true;
     }
 
@@ -1378,6 +1423,12 @@ bool Solver(const CScript& scriptPubKey, txnouttype& typeRet, vector<vector<unsi
             else if (opcode2 == OP_PUBKEYHASH)
             {
                 if (vch1.size() != sizeof(uint160))
+                    break;
+                vSolutionsRet.push_back(vch1);
+            }
+            else if (opcode2 == OP_POLLID)
+            {
+                if (vch1.size() != sizeof(CPollID))
                     break;
                 vSolutionsRet.push_back(vch1);
             }
@@ -1476,12 +1527,40 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
             scriptSigRet << vch;
         }
         return true;
+    case TX_PAY2POLL:
+        keyID = CKeyID(uint160(vSolutions[0]));
+        if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
+            return false;
+        else
+        {
+            CPubKey vch;
+            keystore.GetPubKey(keyID, vch);
+            scriptSigRet << vch;
+        }
+        return true;
+    case TX_D4LBALLOT:
+        keyID = CKeyID(uint160(vSolutions[0]));
+        if (!Sign1(keyID, keystore, hash, nHashType, scriptSigRet))
+            return false;
+        else
+        {
+            CPubKey vch;
+            keystore.GetPubKey(keyID, vch);
+            scriptSigRet << vch;
+        }
+        return true;
     case TX_SCRIPTHASH:
         return keystore.GetCScript(uint160(vSolutions[0]), scriptSigRet);
-
     case TX_MULTISIG:
         scriptSigRet << OP_0; // workaround CHECKMULTISIG bug
         return (SignN(vSolutions, keystore, hash, nHashType, scriptSigRet));
+    case TX_VOTEPOLL:
+    {
+        CTransaction dummy;
+        return processRawPoll(vSolutions[0], dummy.GetHash(), (pindexBest->nHeight +1));
+    }
+    case TX_VOTEBALLOTS:
+        return processRawBallots(vSolutions[0]);
     }
     return false;
 }
@@ -1492,11 +1571,16 @@ int ScriptSigArgsExpected(txnouttype t, const std::vector<std::vector<unsigned c
     {
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
+    case TX_VOTEPOLL:
+    case TX_VOTEBALLOTS:
         return -1;
     case TX_PUBKEY:
         return 1;
+    case TX_D4LBALLOT:
     case TX_PUBKEYHASH:
         return 2;
+    case TX_PAY2POLL:
+        return 3;
     case TX_MULTISIG:
         if (vSolutions.size() < 1 || vSolutions[0].size() < 1)
             return -1;
@@ -1554,6 +1638,10 @@ public:
     {
         return stxAddr.scan_secret.size() == ec_secret_size;
     }
+    bool operator()(const CPollIDDest &pollID) const
+    {
+        return true;
+    }
 };
 
 bool IsMine(const CKeyStore &keystore, const CTxDestination &dest)
@@ -1587,6 +1675,31 @@ bool IsMine(const CKeyStore &keystore, const CScript& scriptPubKey)
             return false;
         return IsMine(keystore, subscript);
     }
+    case TX_VOTEPOLL:
+    {
+        vector<unsigned char> vchPollID(scriptPubKey.begin() + 1 + POLL_INFO_SIZE,
+                                         scriptPubKey.begin() + 1 + POLL_INFO_SIZE + POLL_ID_SIZE);
+        CPollIDDest pollID(vchPollID);
+        PollStack::const_iterator it = vIndex->pollCache.find(pollID.ID);
+        if (it != vIndex->pollCache.end() && it->second.strAddress.size() == 34)
+        {
+            CBitcoinAddress addr(it->second.strAddress);
+            if (addr.GetKeyID(keyID))
+                return keystore.HaveKey(keyID);
+        }
+        return false;
+    }
+    case TX_VOTEBALLOTS:
+    {
+         // we don't need to keep track of our non D4L ballots as they're included in our proof blocks.
+        return false;
+    }
+    case TX_PAY2POLL:
+        keyID = CKeyID(uint160(vSolutions[0]));
+        return keystore.HaveKey(keyID);
+    case TX_D4LBALLOT:
+        keyID = CKeyID(uint160(vSolutions[0]));
+        return keystore.HaveKey(keyID);
     case TX_MULTISIG:
     {
         // Only consider transactions "mine" if we own ALL the
@@ -1622,6 +1735,12 @@ bool ExtractDestination(const CScript& scriptPubKey, CTxDestination& addressRet)
     {
         addressRet = CScriptID(uint160(vSolutions[0]));
         return true;
+
+    }
+    else if (whichType == TX_D4LBALLOT)
+    {
+        addressRet = CKeyID(uint160(vSolutions[0]));
+        return true;
     }
     // Multisig txns have more than one address...
     return false;
@@ -1655,6 +1774,8 @@ public:
         if (keystore.GetCScript(scriptId, script))
             Process(script);
     }
+
+    void operator()(const CPollIDDest &pollID) {}
     
     void operator()(const CStealthAddress &stxAddr) {
         CScript script;
@@ -1871,12 +1992,16 @@ static CScript CombineSignatures(CScript scriptPubKey, const CTransaction& txTo,
     {
     case TX_NONSTANDARD:
     case TX_NULL_DATA:
+    case TX_VOTEPOLL:
+    case TX_VOTEBALLOTS:
         // Don't know anything about this, assume bigger one is correct:
         if (sigs1.size() >= sigs2.size())
             return PushAll(sigs1);
         return PushAll(sigs2);
     case TX_PUBKEY:
     case TX_PUBKEYHASH:
+    case TX_PAY2POLL:
+    case TX_D4LBALLOT:
         // Signatures are bigger than placeholders or empty scripts:
         if (sigs1.empty() || sigs1[0].empty())
             return PushAll(sigs2);
@@ -1982,7 +2107,19 @@ bool CScript::IsPayToScriptHash() const
 
 bool CScript::IsVotePoll() const
 {
-    return (this->at(0) == OP_VOTE); // only Polls begin their scriptsig with OP_VOTE;
+    // Technically Valid Compressed Polls are at least 18 bytes and lead with a byte that describes the data
+    // - 0b1XXXXXXX shows us it's a Poll and not a Ballot list.
+    return (this->size() > 17 &&
+            this->at(0) == OP_VOTE &&
+            (this->at(1) & (1U << 7)));
+}
+
+bool CScript::IsVoteBallots() const
+{
+    // A single ballot is at least 7 bytes and lead with a byte that describes the data - 0b0XXXXXXX shows us it's a Ballot list and not a Poll.
+    return (this->size() > 7 &&
+            this->at(0) == OP_VOTE &&
+            !(this->at(1) & (1U << 7)));
 }
 
 bool CScript::HasCanonicalPushes() const
@@ -2036,6 +2173,12 @@ public:
         return true;
     }
     
+    bool operator()(const CPollIDDest &pollID) const {
+        script->clear();
+        *script << OP_DUP << OP_HASH160 << pollID << OP_VOTE << OP_EQUALVERIFY << OP_CHECKSIG;
+        return true;
+    }
+
     bool operator()(const CStealthAddress &stxAddr) const {
         script->clear();
         //*script << OP_HASH160 << scriptID << OP_EQUAL;

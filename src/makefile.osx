@@ -84,7 +84,6 @@ OBJS= \
     obj/rpcblockchain.o \
     obj/rpcrawtransaction.o \
     obj/rpcsmessage.o \
-    obj/rpcvote.o \
     obj/script.o \
 	obj/stakedb.o \
     obj/sync.o \
@@ -98,9 +97,7 @@ OBJS= \
     obj/scrypt-x86.o \
     obj/scrypt-x86_64.o \
     obj/smessage.o \
-    obj/stealth.o \
-    obj/votedb.o \
-    obj/rpcvote.o 
+    obj/stealth.o 
 
 ifndef USE_UPNP
 	override USE_UPNP = -

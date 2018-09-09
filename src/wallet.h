@@ -227,6 +227,7 @@ public:
 
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination& address, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string SubmitPollTx(CScript& scriptPubKey, CWalletTx& wtxNew);
 
     
     bool NewStealthAddress(std::string& sError, std::string& sLabel, CStealthAddress& sxAddr);
@@ -252,6 +253,7 @@ public:
 
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, int64_t> GetAddressBalances();
+    int64_t GetAddressBalance(const CTxDestination& address);
 
     bool IsMine(const CTxIn& txin) const;
     int64_t GetDebit(const CTxIn& txin) const;
@@ -452,6 +454,8 @@ public:
     unsigned int nTimeSmart;
     char fFromMe;
     std::string strFromAccount;
+    std::string strFromAddress;
+    bool isPoll;
     std::vector<char> vfSpent; // which outputs are already spent
     int64_t nOrderPos;  // position in ordered transaction list
 
@@ -496,6 +500,8 @@ public:
         nTimeSmart = 0;
         fFromMe = false;
         strFromAccount.clear();
+        strFromAddress.clear();
+        isPoll=false;
         vfSpent.clear();
         fDebitCached = false;
         fCreditCached = false;

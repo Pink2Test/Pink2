@@ -233,6 +233,7 @@ public:
         return EncodeBase58Check(vch);
     }
 
+
     int CompareTo(const CBase58Data& b58) const
     {
         if (nVersion < b58.nVersion) return -1;
@@ -264,6 +265,7 @@ public:
     CBitcoinAddressVisitor(CBitcoinAddress *addrIn) : addr(addrIn) { }
     bool operator()(const CKeyID &id) const;
     bool operator()(const CScriptID &id) const;
+    bool operator()(const CPollIDDest &id) const;
     bool operator()(const CStealthAddress &stxAddr) const;
     bool operator()(const CNoDestination &no) const;
 };
@@ -394,6 +396,7 @@ public:
 bool inline CBitcoinAddressVisitor::operator()(const CKeyID &id) const         { return addr->Set(id); }
 bool inline CBitcoinAddressVisitor::operator()(const CScriptID &id) const      { return addr->Set(id); }
 bool inline CBitcoinAddressVisitor::operator()(const CStealthAddress &stxAddr) const      { return false; }
+bool inline CBitcoinAddressVisitor::operator()(const CPollIDDest &pollID) const      { return false; }
 bool inline CBitcoinAddressVisitor::operator()(const CNoDestination &id) const { return false; }
 
 /** A base58-encoded secret key */

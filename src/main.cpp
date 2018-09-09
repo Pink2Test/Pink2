@@ -169,6 +169,10 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
                 if (pwallet->IsFromMe(tx))
                     pwallet->DisableTransaction(tx);
         }
+        if (tx.IsVotePoll())
+        {
+            erasePoll(tx.GetHash());
+        }
         return;
     }
 
@@ -406,6 +410,10 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
         if (nArgsExpected < 0)
             return false;
+
+
+        if (whichType == TX_VOTEPOLL || whichType == TX_VOTEBALLOTS)
+            return true;
 
         // Transactions with extra stuff in their scriptSigs are
         // non-standard. Note that this EvalScript() call will
@@ -1698,7 +1706,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 if(pindex->pprev->nTime < VOTE_START_DATE && !fTestNet)
                     return DoS(100, error("ConnectBlock() : Voting system not yet available on MainNet."));
 
-                if((nTxValueIn - nTxValueOut) < VOTE_FEE)
+                if((nTxValueIn - nTxValueOut) < VOTE_FEE && !fTestNet)
                     return DoS(100, error("ConnectBlock() : Voting fee not paid."));
 
                 nTxValueIn -= VOTE_FEE;
@@ -1708,7 +1716,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
-            if (tx.IsCoinStake())
+            if (tx.IsCoinStake())  // We already checked that it's not a VotePoll in CheckBlock() so this is ok.
                 nStakeReward = nTxValueOut - nTxValueIn;
 
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
@@ -1718,7 +1726,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
-    int64_t nFeeFromPool = ((pindex->pprev->nFeePool + nPoolFees) / 100000);
+    int64_t nFeeFromPool = ((pindex->pprev->nFeePool + nPoolFees) / FEEPOOL_RELEASE_RATE);
 
     if (IsProofOfWork())
     {
@@ -1775,7 +1783,14 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     // Watch for transactions paying to me
     BOOST_FOREACH(CTransaction& tx, vtx)
+    {
         SyncWithWallets(tx, this, true);
+        if (tx.IsVotePoll())
+        {
+            vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
+            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false);
+        }
+    }
 
     return true;
 }
@@ -2185,7 +2200,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
 
     if (nTime > 1513942698) // Block 315065
         futureLimit = futureLimit + (9 * 60);
-
 
     // Check timestamp
     if (futureLimit > FutureDrift(GetAdjustedTime()))

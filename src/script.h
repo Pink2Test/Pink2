@@ -42,8 +42,20 @@ enum txnouttype
     TX_PUBKEY,
     TX_PUBKEYHASH,
     TX_SCRIPTHASH,
+    TX_VOTEPOLL,
+    TX_VOTEBALLOTS,
+    TX_PAY2POLL,
+    TX_D4LBALLOT,
     TX_MULTISIG,
     TX_NULL_DATA,
+};
+
+struct CPollIDDest : public std::vector<unsigned char>
+{
+    uint32_t ID;
+    CPollIDDest() : ID(0) { this->resize(4, '\0'); }
+    CPollIDDest(const uint32_t &in) : ID(in) { this->resize(4); memcpy(&*this, &ID, 4); }
+    CPollIDDest(std::vector<unsigned char> &in) : ID(0) { assert(in.size() == 4); memcpy(&ID, &in, 4); }
 };
 
 class CNoDestination {
@@ -58,7 +70,7 @@ public:
  *  * CScriptID: TX_SCRIPTHASH destination
  *  A CTxDestination is the internal data type encoded in a CBitcoinAddress
  */
-typedef boost::variant<CNoDestination, CKeyID, CScriptID, CStealthAddress> CTxDestination;
+typedef boost::variant<CNoDestination, CKeyID, CScriptID, CPollIDDest, CStealthAddress> CTxDestination;
 
 const char* GetTxnOutputType(txnouttype t);
 
@@ -203,6 +215,7 @@ enum opcodetype
     OP_SMALLDATA = 0xf9,
     OP_SMALLINTEGER = 0xfa,
     OP_PUBKEYS = 0xfb,
+    OP_POLLID = 0xfc,
     OP_PUBKEYHASH = 0xfd,
     OP_PUBKEY = 0xfe,
 
@@ -375,13 +388,26 @@ public:
             unsigned short nSize = b.size();
             insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
         }
-        else
+        else if (b.size() <= 0xffffffff)
         {
             insert(end(), OP_PUSHDATA4);
             unsigned int nSize = b.size();
             insert(end(), (unsigned char*)&nSize, (unsigned char*)&nSize + sizeof(nSize));
         }
         insert(end(), b.begin(), b.end());
+        return *this;
+    }
+
+    CScript& operator<=(const std::vector<unsigned char>& b)
+    {
+        if (b.size() > 2)
+        {
+            unsigned char tB[3]; memcpy(&tB[1], &b[0], 2);
+            tB[0] = tB[2]; tB[1] &= 0x0F;
+            uint16_t cSize; memcpy(&cSize, &tB[0], 2);
+            if (b.size() == 11U + cSize)
+                insert(end(), b.begin(), b.end());
+        }
         return *this;
     }
 
@@ -532,6 +558,7 @@ public:
     bool IsPayToScriptHash() const;
 
     bool IsVotePoll() const;
+    bool IsVoteBallots() const;
 
     // Called by CTransaction::IsStandard and P2SH VerifyScript (which makes it consensus-critical).
     bool IsPushOnly() const
@@ -588,9 +615,6 @@ public:
         std::vector<unsigned char>().swap(*this);
     }
 };
-
-
-
 
 
 bool EvalScript(std::vector<std::vector<unsigned char> >& stack, const CScript& script, const CTransaction& txTo, unsigned int nIn, int nHashType);
