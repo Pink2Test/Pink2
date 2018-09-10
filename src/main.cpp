@@ -1724,7 +1724,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 nTxValueIn -= VOTE_FEE;
                 nValueIn -= VOTE_FEE;
                 nPoolFees += VOTE_FEE;
-                nFeeFromPool = VOTE_FEE / FEEPOOL_RELEASE_RATE;
+                nFeeFromPool += VOTE_FEE / FEEPOOL_RELEASE_RATE;
             }
 
             if (!tx.IsCoinStake())
