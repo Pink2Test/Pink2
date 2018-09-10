@@ -664,15 +664,15 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
 
 }
 
-void FundAddress(const Array& params, Object& retObj, string& helpText)
+void FromAddress(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
     if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 == "help" || params.size() > 2)
-        helpText = ("vote removeoption [option number] \n"
-                            "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+        helpText = ("vote fundaddress [option number] \n"
+                            "Sets the address to fund the poll from (not yet functional).\n");
 
     if (helpText != "")
         return;
@@ -681,20 +681,39 @@ void FundAddress(const Array& params, Object& retObj, string& helpText)
 
 }
 
-void ClaimAddress(const Array& params, Object& retObj, string& helpText)
+void OwnerAddress(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
     if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 == "help" || params.size() > 2)
-        helpText = ("vote removeoption [option number] \n"
-                    "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
+        helpText = ("vote address [option number] \n"
+                    "Sets the owner address for the poll. Required for proving poll ownership.\n");
 
     if (helpText != "")
         return;
 
-    retObj.push_back(Pair("add", "WIP"));
+    if (param1.size() == 34) // Standard pinkcoin addresses only atm.
+    {
+        CBitcoinAddress ownerAddress(param1);
+        if (!ownerAddress.IsValid())
+        {
+            retObj.push_back(Pair("Set Address", "Failed."));
+            retObj.push_back(Pair("Reason: ", "Invalid address."));
+            return;
+        }
+        if (!IsMine(*pwalletMain, ownerAddress.Get()))
+        {
+            retObj.push_back(Pair("Set Address", "Failed."));
+            retObj.push_back(Pair("Reason: ", "Address does not belong to us."));
+        }
+
+        vIndex->current.poll->strAddress = param1;
+    }
+
+    retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+    retObj.push_back(Pair("Owner Address", vIndex->current.poll->strAddress));
 
 }
 
@@ -986,10 +1005,10 @@ Value vote(const Array& params, bool fHelp)
         AddOption(params, retObj, cHelpText);
     else if (command == "removeoption")
         RemoveOption(params, retObj, cHelpText);
-    else if (command == "fundaddress")
-        FundAddress(params, retObj, cHelpText);
-    else if (command == "bountyaddress")
-        ClaimAddress(params, retObj, cHelpText);
+    else if (command == "fromaddress")
+        FromAddress(params, retObj, cHelpText);
+    else if (command == "address")
+        OwnerAddress(params, retObj, cHelpText);
     else if (command == "listactive")
         ListActive(params, retObj, cHelpText);
     else if (command == "listcomplete")
