@@ -545,7 +545,7 @@ public:
 
     bool IsVotePoll() const
     {
-        if (vout.size() > 0)
+        if (vin.size () > 0 && !(vout[0].scriptPubKey.begin() == vout[0].scriptPubKey.end()))
         {
             return vout[0].scriptPubKey.IsVotePoll();
         }
