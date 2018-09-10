@@ -618,6 +618,13 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx,
     if (tx.IsCoinStake())
         return tx.DoS(100, error("CTxMemPool::accept() : coinstake as individual tx"));
 
+    if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
+    {
+        vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
+        if (!processRawPoll(rawPoll, 0, pindexBest->nHeight, true))
+            return tx.DoS(10, error("CTxMemPool::accept() : Poll not accepted."));
+    }
+
     // Rather not work on nonstandard transactions (unless -testnet)
     if (!fTestNet && !tx.IsStandard())
         return error("CTxMemPool::accept() : nonstandard transaction type");
@@ -1736,7 +1743,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     {
         int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees, nFeeFromPool);
         // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward || !( fTestNet && pindex->nHeight < 189840 ) ) // some messed up blocks got included in testnet before this while testing feepool.
+        if (vtx[0].GetValueOut() > nReward && !( fTestNet && pindex->nHeight < 189840 ) ) // some messed up blocks got included in testnet before this while testing feepool.
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
                    vtx[0].GetValueOut(),
                    nReward));
@@ -1750,7 +1757,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
         int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees, nFeeFromPool, pindex->nHeight, pindex->nTime);
 
-        if (nStakeReward > nCalculatedStakeReward)
+        if (nStakeReward > nCalculatedStakeReward && !( fTestNet && pindex->nHeight < 189840 ))
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64 " vs calculated=%" PRId64 ")", nStakeReward, nCalculatedStakeReward));
     }
 
@@ -1793,10 +1800,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
         SyncWithWallets(tx, this, true);
-        if (tx.vout[0].scriptPubKey.IsVotePoll())
+        if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
         {
             vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
-            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, true);
+            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false, true);
         }
     }
 
