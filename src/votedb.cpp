@@ -32,7 +32,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
-    string strAddress = "address";
+    string strAddress = "address" + Local;
 
     string option[7];
     string tallyPOS[7];
@@ -71,12 +71,15 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
         success = false;
     if (!Write(make_pair(question, sPollID), votePoll.Question))
         success = false;
-    if (!Write(make_pair(txhash, sPollID), sHash))
-        success = false;
-    if (!Write(make_pair(height, sPollID), sPollHeight))
-        success = false;
     if (!Write(make_pair(strAddress, sPollID), votePoll.strAddress))
         success = false;
+
+    if (!isLocal) {
+        if (!Write(make_pair(txhash, sPollID), sHash))
+            success = false;
+        if (!Write(make_pair(height, sPollID), sPollHeight))
+            success = false;
+    }
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order
     {                                                         // when we load them again later.
@@ -84,7 +87,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
         if (!Write(make_pair(option[i], sPollID), vOption))
             success = false;
 
-        if (Local.size() == 0)
+        if (!isLocal)
         {
             const string vTallyPOS = to_string(votePoll.nTally[i-1].POS);
             const string vTallyFPOS = to_string(votePoll.nTally[i-1].FPOS);
@@ -120,7 +123,7 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
-    string strAddress = "address";
+    string strAddress = "address" + Local;
 
     string option[7];
     string tallyPOS[7];
@@ -131,7 +134,7 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     for (int i = 0; i < 7 ; i++ )
     {
         option[i] = "option" + to_string(i) + Local;
-        if (Local.size() == 0)
+        if (!isLocal)
         {
             tallyPOS[i] = "tPOS" + to_string(i);
             tallyFPOS[i] = "tFPOS" + to_string(i);
@@ -152,12 +155,16 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
         success = true;
     if (Erase(make_pair(question, sPollID)))
         success = true;
-    if (Erase(make_pair(txhash, sPollID)))
-        success = true;
-    if (Erase(make_pair(height, sPollID)))
-        success = true;
     if (Erase(make_pair(strAddress, sPollID)))
         success = true;
+
+    if (!isLocal)
+    {
+        if (Erase(make_pair(txhash, sPollID)))
+            success = true;
+        if (Erase(make_pair(height, sPollID)))
+            success = true;
+    }
 
     for (uint8_t i = votePoll.OpCount ; i > 0 ; i--)          // Peel them off in reverse so we can preserve order
     {                                                         // when we load them again later.
@@ -198,7 +205,7 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     string question = "question" + Local;
     string txhash = "txhash";
     string height = "height";
-    string strAddress = "address";
+    string strAddress = "address" + Local;
 
     string option[7];
     string tallyPOS[7];
@@ -279,6 +286,7 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
             votePoll.nHeight = stoul(sPollHeight);
         readAnything = true;
     }
+
 
     for (uint8_t i = 0 ; i < 6 ; i++)
     {
@@ -527,6 +535,12 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
                     stack.poll->strAddress = activePoll.strAddress;
                 else
                     voteIndex->pollCache.insert(make_pair(activePoll.ID, activePoll));
+            } else if (strType.find("Local", typeLen) != string::npos)
+            {
+                if (stack.pIt != voteIndex->pollStack.end())
+                    stack.poll->strAddress = activePoll.strAddress;
+                else
+                    voteIndex->pollStack.insert(make_pair(activePoll.ID, activePoll));
             }
         }
         else if (strType.rfind("option", 0) == 0)

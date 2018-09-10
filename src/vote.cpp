@@ -610,17 +610,22 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
     if (pollSize > MAX_VOTE_SIZE) { printf("[processRawPoll: Poll Exceeds limit. \n"); return false; }
     if (rawPoll.size() != pollSize) { printf("[processRawPoll: Poll has invalid size.\n"); return false; }
 
+    rIt += POLL_INFO_SIZE;
+
+    CPollID pollID;
+    memcpy(&pollID, &*rIt, POLL_ID_SIZE);
+    rIt += POLL_ID_SIZE;
+
+    if (vIndex->pollCache.find(pollID) != vIndex->pollCache.end())
+        return false;
+
     if (!checkOnly)
     {
         try {
-            bool success = true;
+            bool success = false;
             CVotePoll *checkPoll = new CVotePoll();
 
-            rIt += POLL_INFO_SIZE;
-            success = false;
-
-            memcpy(&checkPoll->ID, &*rIt, POLL_ID_SIZE);
-            rIt += POLL_ID_SIZE;
+            checkPoll->ID = pollID;
 
             memcpy(&checkPoll->Flags, &*rIt, POLL_FLAG_SIZE); rIt += POLL_FLAG_SIZE;
             memcpy(&checkPoll->Start, &*rIt, POLL_TIME_SIZE); rIt += POLL_TIME_SIZE;
