@@ -2260,7 +2260,7 @@ Value scanforalltxns(const Array& params, bool fHelp)
     
     
     if (params.size() > 0)
-        nFromHeight = params[0].get_int();
+        nFromHeight = stoul(params[0].get_str());
     
     
     if (nFromHeight > 0)

@@ -363,9 +363,11 @@ CPollID CVote::getNewPollID()
 bool CVote::setPoll(CPollID& pollID)
 {
     bool setPoll = false;
-    if (pollCache.find(pollID) != pollCache.end())
+    if (pollCache.find(pollID) != pollCache.end() && pollStack.find(pollID) == pollStack.end())
     {
-        current.setActive(pollCache.find(pollID), current.bIt, ActivePoll::SET_POLL);
+        CVotePoll *newPoll = new CVotePoll();
+        newPoll->pollCopy(pollCache.find(pollID)->second);
+        pollStack.insert(make_pair(pollID, *newPoll));
         readyPoll = false;
         setPoll=true;
     }
