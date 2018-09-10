@@ -700,7 +700,13 @@ void OwnerAddress(const Array& params, Object& retObj, string& helpText)
         if (!ownerAddress.IsValid())
         {
             retObj.push_back(Pair("Set Address", "Failed."));
+            retObj.push_back(Pair("Reason: ", "Invalid address."));
             return;
+        }
+        if (!IsMine(*pwalletMain, ownerAddress.Get()))
+        {
+            retObj.push_back(Pair("Set Address", "Failed."));
+            retObj.push_back(Pair("Reason: ", "Address does not belong to us."));
         }
 
         vIndex->current.poll->strAddress = param1;
