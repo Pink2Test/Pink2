@@ -1736,7 +1736,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     {
         int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees, nFeeFromPool);
         // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward || ( fTestNet && pindex->nHeight < 189840) ) // some messed up blocks got included in testnet before this while testing feepool.
+        if (vtx[0].GetValueOut() > nReward || !( fTestNet && pindex->nHeight < 189840 ) ) // some messed up blocks got included in testnet before this while testing feepool.
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
                    vtx[0].GetValueOut(),
                    nReward));
