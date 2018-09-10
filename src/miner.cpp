@@ -331,7 +331,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
             int64_t nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
 
             printf("\nIsVotePoll (miner.cpp)\n\n");
-            if (tx.IsVotePoll())
+            if (tx.vout[0].scriptPubKey.IsVotePoll())
             {
                 if (nTxFees < VOTE_FEE)
                     continue;
@@ -391,12 +391,12 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
 
         if (!fProofOfStake)
         {
-            int64_t nPoolFees = (pindexPrev->nFeePool) / FEEPOOL_RELEASE_RATE;
+            int64_t nPoolFees = (pindexPrev->nFeePool + nFeePool) / FEEPOOL_RELEASE_RATE;
             pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nHeight, nFees, nPoolFees);
         }
 
         if (pPoolFees)
-            *pPoolFees = (pindexPrev->nFeePool) / FEEPOOL_RELEASE_RATE;
+            *pPoolFees = (pindexPrev->nFeePool + nFeePool) / FEEPOOL_RELEASE_RATE;
         if (pFees)
             *pFees = nFees;
 

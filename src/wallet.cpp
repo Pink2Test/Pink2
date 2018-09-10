@@ -1641,7 +1641,7 @@ bool CWallet::CreateTransaction(const vector<pair<CScript, int64_t> >& vecSend, 
                         };
                     };
 
-                    if (position->scriptPubKey.IsVotePoll())
+                    if (position == wtxNew.vout.begin() && wtxNew.vout[0].scriptPubKey.IsVotePoll())
                         position++;
 
                     wtxNew.vout.insert(position, CTxOut(nChange, scriptChange));

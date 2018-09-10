@@ -169,7 +169,7 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
                 if (pwallet->IsFromMe(tx))
                     pwallet->DisableTransaction(tx);
         }
-        if (tx.IsVotePoll())
+        if (tx.vout[0].scriptPubKey.IsVotePoll())
         {
             erasePoll(tx.GetHash());
         }
@@ -1644,6 +1644,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     map<uint256, CTxIndex> mapQueuedChanges;
     int64_t nFees = 0;
     int64_t nPoolFees = 0;
+    int64_t nFeeFromPool = 0;
     int64_t nValueIn = 0;
     int64_t nValueOut = 0;
     int64_t nStakeReward = 0;
@@ -1680,8 +1681,12 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
         MapPrevTx mapInputs;
+
         if (tx.IsCoinBase())
+        {
+            nFeeFromPool = pindex->pprev->nFeePool / FEEPOOL_RELEASE_RATE;
             nValueOut += tx.GetValueOut();
+        }
         else
         {
             bool fInvalid;
@@ -1700,7 +1705,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
 
-            if (tx.IsVotePoll())
+            if (tx.vout[0].scriptPubKey.IsVotePoll())
             {
 
                 if(pindex->pprev->nTime < VOTE_START_DATE && !fTestNet)
@@ -1712,6 +1717,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 nTxValueIn -= VOTE_FEE;
                 nValueIn -= VOTE_FEE;
                 nPoolFees += VOTE_FEE;
+                nFeeFromPool = VOTE_FEE / FEEPOOL_RELEASE_RATE;
             }
 
             if (!tx.IsCoinStake())
@@ -1726,13 +1732,11 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         mapQueuedChanges[hashTx] = CTxIndex(posThisTx, tx.vout.size());
     }
 
-    int64_t nFeeFromPool = ((pindex->pprev->nFeePool + nPoolFees) / FEEPOOL_RELEASE_RATE);
-
     if (IsProofOfWork())
     {
         int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees, nFeeFromPool);
         // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward)
+        if (vtx[0].GetValueOut() > nReward || ( fTestNet && pindex->nHeight < 189840) ) // some messed up blocks got included in testnet before this.
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
                    vtx[0].GetValueOut(),
                    nReward));
@@ -1753,7 +1757,11 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     // ppcoin: track money supply, mint amount, and feepool info
     pindex->nMint = nValueOut - nValueIn + nFees + nFeeFromPool;
     pindex->nFeePool = (pindex->pprev? pindex->pprev->nFeePool : 0) + nPoolFees - nFeeFromPool;
-    pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
+
+    // We subtract nFeeFromPool here because it came from the established fee pool and is not new pink.
+    // This is not the case with regular nFees because they originate from other nValueIn's included in this block
+    // and therefore balance out this equation on their own.
+    pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn - nFeeFromPool;
 
     if(pindex->pprev->nTime >= VOTE_START_DATE || (fTestNet && pindex->pprev->nTime >= 1534208400))
         pindex->nFlags |= CBlockIndex::BLOCK_FEE_POOL;
@@ -1785,10 +1793,10 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
         SyncWithWallets(tx, this, true);
-        if (tx.IsVotePoll())
+        if (tx.vout[0].scriptPubKey.IsVotePoll())
         {
             vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
-            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false);
+            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, true);
         }
     }
 
