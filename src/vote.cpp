@@ -33,6 +33,10 @@ ActivePoll::ActivePoll()  :  pIt(*(new PollStack::iterator)), bIt(*(new BallotSt
 
     setActive(dummyPollStack->find(0), dummyBallotStack->find(0), SET_CLEAR); poll->clear();
 }
+bool ActivePoll::isLocal()
+{
+    return (vIndex->pollCache.find(poll->ID) == vIndex->pollCache.end());
+}
 
 void CVotePoll::pollCopy(const CVotePoll& poll)
 {
@@ -331,7 +335,7 @@ bool CVote::getPoll(CPollID& pollID, CVotePoll* poll)
 }
 
 
-// Because c++ doesn't like comparing structures/classes.
+// Because c++ doesn't like comparing structures/classes. Will define == operator later.
 bool pollCompare(CVotePoll* a, CVotePoll* b)
 {
     if (a->ID != b->ID || a->Name != b->Name ||
@@ -404,6 +408,15 @@ bool CVote::validatePoll(const CVotePoll* poll, const bool& fromBlockchain)
 
     readyPoll = true;  // I wrote this weird, I know. I'll fix it all later.
 
+    // If it is from the blockchain and therefore not Local,
+    // it will still return true if we don't have it at all.
+    // I'll rewrite isLocal as a wrapper around 'haveCached()'
+    // function or something later. Yes I could have done that
+    // more quickly than I spent writing this comment, but then
+    // I would be denying you the entertainment
+    if (!p->isLocal())
+        readyPoll = false;
+
     if (p->Start >= p->End)
         readyPoll = false;
     if (p->strAddress.size() < 1)
@@ -436,17 +449,47 @@ bool CVote::commitPoll(const CVotePoll *poll, string& hash, const bool &fromBloc
 {
     string fromAddress = ""; // Not yet supported.
     bool ret = false;
+    bool isLocal = fromBlockchain; // So WriteVote is clearer, because the default write IS local.
     if (this->pollCache.find(poll->ID) == this->pollCache.end() && fromBlockchain)
-        ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !fromBlockchain);
+        ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !isLocal);
 
     if (ret)
         this->pollCache.insert(make_pair(poll->ID, *poll));
+
+    if (ret && pollStack.find(poll->ID) != pollStack.end() && !pollCompare(&pollCache.at(poll->ID), &pollStack.at(poll->ID)))
+    {
+        CPollID newID = poll->ID;
+        while (pollCache.find(newID) != pollCache.end())
+        {
+            newID = getNewPollID();
+        }
+        CVoteDB(this->strWalletFile).EraseVote(pollStack.at(poll->ID));
+
+        pollStack.at(newID).ID = newID;
+        CVoteDB(this->strWalletFile).WriteVote(pollStack.at(newID));
+
+    }
 
 
     if (!fromBlockchain)
         return commitToChain(poll, fromAddress, hash);
 
     return ret;
+}
+
+bool CVote::havePollReady()
+{
+    return readyPoll;
+}
+
+bool CVote::commitToChain(string& hash)
+{
+    return commitToChain(vIndex->current.poll, "", hash);
+}
+
+void CVote::setReady(const bool isReady)
+{
+    readyPoll = isReady;
 }
 
 bool CVote::commitToChain(const CVotePoll* poll, const string& fromAddress, string& hash)
@@ -680,11 +723,9 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
             checkPoll->hash = hash;
 
             string strHash = "";
-            if (vIndex->validatePoll(checkPoll, fromBlockchain))
-                success = vIndex->commitPoll(checkPoll, strHash, fromBlockchain);
-
-            if (!fromBlockchain)
-                checkPoll->hash.SetHex(strHash);
+            success = vIndex->validatePoll(checkPoll, fromBlockchain);
+            if (success && fromBlockchain)
+                vIndex->commitPoll(checkPoll, strHash, fromBlockchain);
 
             printf("Success. %u %s %s %u %u %s. \n", checkPoll->ID, checkPoll->Name.c_str(), checkPoll->Question.c_str(), checkPoll->Start, checkPoll->End, checkPoll->hash.GetHex().c_str());
 
@@ -810,4 +851,8 @@ void erasePoll(const CPollID& ID)
         CVoteDB(vIndex->strWalletFile).EraseVote(it->second);
         vIndex->pollCache.erase(it);
     }
+}
+bool isLocal()
+{
+    return (vIndex->pollCache.find(vIndex->current.poll->ID) == vIndex->pollCache.end());
 }

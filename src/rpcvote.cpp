@@ -123,6 +123,14 @@ void GetPoll(Object& retObj)
         try
         {
             retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+            retObj.push_back(Pair("Owner Address", to_string(vIndex->current.poll->strAddress)));
+
+            if (vIndex->pollCache.find(vIndex->current.poll->ID) != vIndex->pollCache.end())
+            {
+                retObj.push_back(Pair("In Block#", to_string(vIndex->current.poll->nHeight)));
+                retObj.push_back(Pair("Transaction ID", to_string(vIndex->current.poll->hash.GetHex())));
+            }
+
             retObj.push_back(Pair("Poll Name", vIndex->current.poll->Name));
             retObj.push_back(Pair("Poll Question", vIndex->current.poll->Question));
 
@@ -161,6 +169,9 @@ void PollInfo(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
+    if (!HaveActive())
+        return;
+
     GetPoll(retObj);
 }
 
@@ -175,6 +186,9 @@ void Tally(const Array& params, Object& retObj, string& helpText)
                             "Returns the network voting tally for the currently selected poll.\n");
 
     if (helpText != "")
+        return;
+
+    if (!HaveActive())
         return;
 
     retObj.push_back(Pair("tally", "WIP"));
@@ -197,6 +211,9 @@ void CastVote(const Array& params, Object& retObj, string& helpText)
     if (param1 != "")
         return;
 
+    if (HaveActive())
+        return;
+
     retObj.push_back(Pair("coins", numCoins));
 }
 
@@ -215,7 +232,27 @@ void Confirm(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
-    retObj.push_back(Pair("confirm", "WIP"));
+    if (!HaveActive())
+        return;
+
+    if (!vIndex->havePollReady())
+    {
+        helpText = "The poll is not ready. Please use 'vote submitpoll' first.\n";
+        return;
+    }
+
+    string txID;
+    if (!vIndex->commitToChain(txID))
+    {
+        helpText = "Failed to commit Poll.";
+        return;
+    }
+
+    retObj.push_back(Pair("SubmitPoll", "Success."));
+    retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
+    retObj.push_back(Pair("Transaction ID", txID.c_str()));
+
+    vIndex->setReady(false);
 }
 
 void GetActive(const Array& params, Object& retObj, string& helpText)
@@ -229,6 +266,9 @@ void GetActive(const Array& params, Object& retObj, string& helpText)
                             "Returns the PollID for the currently active poll.\n");
 
     if (helpText != "")
+        return;
+
+    if (!HaveActive())
         return;
 
     retObj.push_back(Pair("Active PollID", to_string(vIndex->current.poll->ID)));
@@ -248,6 +288,9 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
     if (helpText != "")
+        return;
+
+    if (!HaveActive())
         return;
 
     if (nSelect > 0 && nSelect < (vIndex->current.poll->OpCount +1) && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
@@ -282,6 +325,8 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
     newPoll->clear();
     if (!vIndex->newPoll(newPoll))
         throw runtime_error("New Poll Creation Failed.\n");
+
+    vIndex->setReady(false);
 
     retObj.push_back(Pair("New PollID", to_string(vIndex->current.poll->ID)));
 
@@ -329,7 +374,9 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
-    // Rawpoll prototype encode/decode for platform testing. Not the final version.
+    if (!HaveActive())
+        return;
+
     bool success = false;
     vector<unsigned char> rawPoll;
     if (getRawPoll(rawPoll, vIndex->current.poll))
@@ -342,13 +389,13 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
 
     if (success)
     {
-        retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
-        retObj.push_back(Pair("Submitted", "true"));
+        GetPoll(retObj);
+        retObj.push_back(Pair("Ready to Confirm", "true"));
     }
     else
     {
         retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
-        retObj.push_back(Pair("Submitted", "false"));
+        retObj.push_back(Pair("Ready to Confirm", "false"));
     }
 
 }
@@ -369,16 +416,19 @@ void PollName(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
 
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
+
     if (helpText == "" && param1.size() <= POLL_NAME_SIZE)
     {
         vIndex->current.poll->Name = param1;
         retObj.push_back(Pair("PollID", to_string(vIndex->current.poll->ID)));
         retObj.push_back(Pair("Name", vIndex->current.poll->Name));
 
+        vIndex->setReady(false);
+
         CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
         CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
-        //pvoteDB->WriteVote(*vIndex->current.poll, true);
-        //pvoteDB->WriteBallot(*vIndex->current.ballot);
     }
 
 }
@@ -399,6 +449,9 @@ void PollQuestion(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
 
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
+
     if (param1.size() <= POLL_QUESTION_SIZE)
     {
         vIndex->current.poll->Question = param1;
@@ -406,8 +459,6 @@ void PollQuestion(const Array& params, Object& retObj, string& helpText)
         retObj.push_back(Pair("Question", vIndex->current.poll->Question));
 
         CVoteDB(vIndex->strWalletFile).WriteVote(*vIndex->current.poll);
-        //pvoteDB->WriteVote(*vIndex->current.poll, true);
-        //pvoteDB->WriteBallot(*vIndex->current.ballot);
     }
 
 }
@@ -426,6 +477,9 @@ void PollStart(const Array& params, Object& retObj, string& helpText)
 
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
+
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
 
     if (isNumber(param1) && stol(param1) > GetPollTime(0))
     {
@@ -452,6 +506,9 @@ void PollEnd(const Array& params, Object& retObj, string& helpText)
 
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
+
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
 
     if (isNumber(param1) && stol(param1) > GetPollTime(0))
     {
@@ -538,6 +595,9 @@ void SetFlag(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive() || helpText != "")
         return;
 
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
+
     if (!FlagSetter(param1, vIndex->current.poll->Flags, true))
         helpText = "Flag not found. Check 'vote setflag help' for available flags.\n";
     else if (param1 == "FUNDRAISER" || param1 == "BOUNTY" || param1 == "CLAIM")
@@ -576,6 +636,9 @@ void UnsetFlag(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive() || helpText != "")
         return;
 
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
+
     if (!FlagSetter(param1, vIndex->current.poll->Flags, false))
         helpText = "Flag not found. Check 'vote setflag help' for available flags.\n";
 
@@ -597,6 +660,9 @@ void AddOption(const Array& params, Object& retObj, string& helpText)
 
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
+
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
 
     if (vIndex->current.poll->Option.size() > (POLL_OPTION_COUNT - 1))
         throw runtime_error("Cannot have more than " + to_string(POLL_OPTION_COUNT) + " options. Use vote removeoption to remove one before adding another.\n");
@@ -632,6 +698,9 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
 
     if (!HaveActive())
         throw runtime_error("There is no currently active poll.\n");
+
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
 
     if (!isNumber(param1) || stoi(param1) > vIndex->current.poll->OpCount || stoi(param1) < 1)
         throw runtime_error("Number out of range or you did not enter an option number.\n");
@@ -677,6 +746,9 @@ void FromAddress(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
+
     retObj.push_back(Pair("add", "WIP"));
 
 }
@@ -693,6 +765,12 @@ void OwnerAddress(const Array& params, Object& retObj, string& helpText)
 
     if (helpText != "")
         return;
+
+    if (!HaveActive())
+        return;
+
+    if (!isLocal())
+        throw runtime_error("Polls committed to the blockchain cannot be modified.\n");
 
     if (param1.size() == 34) // Standard pinkcoin addresses only atm.
     {
@@ -717,13 +795,77 @@ void OwnerAddress(const Array& params, Object& retObj, string& helpText)
 
 }
 
+void ListPolls(Object& retObj, uint64_t& nPage, const LIST_POLL_TYPE& type)
+{
+    CPollID counter = 0;
+    uint64_t thisPage = 0;
+
+    if (nPage == 0) { nPage = 1; }
+    retObj.push_back(Pair("PollID", "Name"));
+
+    if (type == LIST_POLL_LOCAL) {
+        for (PollStack::iterator it = vIndex->pollStack.begin() ; it != vIndex->pollStack.end(); it++)
+        {
+            counter++;
+            thisPage = (counter / 10) + 1;
+            if (thisPage == nPage)
+            {
+                CVotePoll p = it->second;
+
+                if (p.ID != 0)
+                {
+                    retObj.push_back(Pair(to_string(p.ID), p.Name));
+                }
+            }
+        }
+    } else {
+        for (PollStack::iterator it = vIndex->pollCache.begin() ; it != vIndex->pollCache.end(); it++)
+        {
+            CVotePoll p = it->second;
+
+            if (type == LIST_POLL_ACTIVE &&
+                    p.ID != 0 &&
+                    p.Start > GetPollTime2(GetTime()) &&
+                    p.End < GetPollTime2(GetTime()))
+            {
+                counter++;
+                thisPage = (counter / 10) + 1;
+                if (thisPage == nPage)
+                    retObj.push_back(Pair(to_string(p.ID), p.Name));
+            } else if (type == LIST_POLL_UPCOMING &&
+                       p.ID != 0 &&
+                       p.Start > GetPollTime2(GetTime()))
+            {
+                counter++;
+                thisPage = (counter / 10) + 1;
+                if (thisPage == nPage)
+                    retObj.push_back(Pair(to_string(p.ID), p.Name));
+            } else if (type == LIST_POLL_COMPLETE &&
+                       p.ID != 0 &&
+                       p.End < GetPollTime2(GetTime()))
+            {
+                counter++;
+                thisPage = (counter / 10) + 1;
+                if (thisPage == nPage)
+                    retObj.push_back(Pair(to_string(p.ID), p.Name));
+            }
+        }
+    }
+
+    int allPages = bool(counter > 0) ? (counter/10) + 1 : 0;
+    string retPage = to_string(nPage) + " of " + to_string(allPages);
+    retObj.push_back(Pair("Page", retPage));
+}
+
 void ListActive(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nPage = stoi(param1);
+    uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
+    param1 = (bool)(param1 == "") ? "0" : param1;
+
     string checkSize = to_string(nPage);
 
     if (param1 != checkSize || params.size() > 2)
@@ -733,7 +875,7 @@ void ListActive(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
-    retObj.push_back(Pair("listactive", "WIP"));
+    ListPolls(retObj, nPage, LIST_POLL_ACTIVE);
 }
 
 void ListComplete(const Array& params, Object& retObj, string& helpText)
@@ -742,7 +884,9 @@ void ListComplete(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nPage = stoi(param1);
+    uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
+    param1 = (bool)(param1 == "") ? "0" : param1;
+
     string checkSize = to_string(nPage);
 
     if (param1 != checkSize || params.size() > 2)
@@ -752,7 +896,8 @@ void ListComplete(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
-    retObj.push_back(Pair("listcomplete", "WIP"));
+
+    ListPolls(retObj, nPage, LIST_POLL_COMPLETE);
 }
 
 void ListUpcoming(const Array& params, Object& retObj, string& helpText)
@@ -761,7 +906,9 @@ void ListUpcoming(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nPage = stoi(param1);
+    uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
+    param1 = (bool)(param1 == "") ? "0" : param1;
+
     string checkSize = to_string(nPage);
 
     if (param1 != checkSize || params.size() > 2)
@@ -771,7 +918,7 @@ void ListUpcoming(const Array& params, Object& retObj, string& helpText)
     if (helpText != "")
         return;
 
-    retObj.push_back(Pair("listupcoming", "WIP"));
+    ListPolls(retObj, nPage, LIST_POLL_UPCOMING);
 }
 
 void SearchName(const Array& params, Object& retObj, string& helpText)
@@ -842,7 +989,7 @@ void ListLocal(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nPage = isNumber(param1) ? stoi(param1) : 0;
+    uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
     param1 = (bool)(param1 == "") ? "0" : param1;
 
     string checkSize = to_string(nPage);
@@ -853,32 +1000,7 @@ void ListLocal(const Array& params, Object& retObj, string& helpText)
 
     if (helpText != "") { return; }
 
-    CPollID counter = 0;
-    for (PollStack::iterator it = vIndex->pollStack.begin() ; it != vIndex->pollStack.end(); it++)
-    {
-        if (counter == 0)
-        {
-            if (nPage == 0) { nPage = 1; }
-            retObj.push_back(Pair("PollID", "Name"));
-        }
-
-        counter++;
-        int thisPage = (counter / 10) + 1;
-
-        if (thisPage == nPage)
-        {
-            CVotePoll p = it->second;
-
-            if (p.ID != 0)
-            {
-                retObj.push_back(Pair(to_string(p.ID), p.Name));
-            }
-        }
-    }
-
-    int allPages = bool(counter > 0) ? (counter/10) + 1 : 0;
-    string retPage = to_string(nPage) + " of " + to_string(allPages);
-    retObj.push_back(Pair("Page", retPage));
+    ListPolls(retObj, nPage, LIST_POLL_LOCAL);
 }
 
 void RemovePoll(const Array& params, Object& retObj, string& helpText)
@@ -914,8 +1036,6 @@ void RemovePoll(const Array& params, Object& retObj, string& helpText)
         if (vIndex->current.poll->ID == it->first)
             vIndex->current.setActive(vIndex->current.pIt, vIndex->current.bIt, ActivePoll::SET_CLEAR);
         vIndex->pollStack.erase(it);
-        //pvoteDB->EraseVote(it->second);
-        //pvoteDB->EraseBallot(vIndex->ballotStack.at(it->first));
     }
 
     string isSuccess = success ? "true" : "false";

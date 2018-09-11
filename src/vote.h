@@ -34,6 +34,15 @@ typedef uint8_t COptionID;
 typedef string CPollOption;
 typedef uint8_t CPollFlags;
 
+enum LIST_POLL_TYPE {
+
+    LIST_POLL_ACTIVE,
+    LIST_POLL_UPCOMING,
+    LIST_POLL_COMPLETE,
+    LIST_POLL_LOCAL,
+
+};
+
 struct CVoteBallot
 {
     CVoteBallot() { clear(); }
@@ -134,6 +143,7 @@ struct ActivePoll
     ~ActivePoll() {}
 
     void setActive(const PollStack::iterator &pit, const BallotStack::iterator &bit, unsigned int flags = SET_POLL_AND_BALLOT);
+    bool isLocal();
 
 private:
 };
@@ -182,7 +192,10 @@ public:
     bool setPoll(CPollID& pollID);
     bool getPoll(CPollID& pollID, CVotePoll* poll);
     bool validatePoll(const CVotePoll *poll, const bool& fromBlockchain = false);
+    bool havePollReady();
+    void setReady(const bool isReady);
     bool commitPoll(const CVotePoll *poll, string &hash, const bool& fromBlockchain = false);
+    bool commitToChain(string &hash);
     bool commitToChain(const CVotePoll* poll, const string &fromAddress, string &hash);
 
     CVotePoll getActivePoll();
@@ -203,6 +216,7 @@ bool pollCompare(CVotePoll* a, CVotePoll* b);
 bool processRawPoll(const vector<unsigned char> &rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true, const bool &fromBlockchain = false);
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
 bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll *inPoll);
+bool isLocal();
 
 void erasePoll(const uint256 &hash);
 void erasePoll(const CPollID& ID);
