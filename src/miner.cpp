@@ -330,7 +330,6 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
 
             int64_t nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
 
-            printf("\nIsVotePoll (miner.cpp)\n\n");
             if (tx.vout[0].scriptPubKey.IsVotePoll())
             {
                 if (nTxFees < VOTE_FEE)
