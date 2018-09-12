@@ -90,6 +90,8 @@ int64_t nSplitThreshold = 2000;
 int64_t nMinimumInputValue = 0;
 int64_t nMinimumStakeValue = 0; // Don't stake old 0 reward blocks.
 
+bool fGlobalNotifications = true;
+
 extern enum Checkpoints::CPMode CheckpointsMode;
 
 //////////////////////////////////////////////////////////////////////////////
@@ -2747,15 +2749,18 @@ bool LoadBlockIndex(bool fAllowNew)
                    }
                }
         }
-        block.print();
-        printf("block.GetHash() == %s\n", block.GetHash().ToString().c_str());
-        printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
-        printf("block.nTime = %u \n", block.nTime);
-        printf("block.nNonce = %u \n", block.nNonce);
-
+        if (GetBoolArg("-printblocks"))
+        {
+            block.print();
+            printf("block.GetHash() == %s\n", block.GetHash().ToString().c_str());
+            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
+            printf("block.nTime = %u \n", block.nTime);
+            printf("block.nNonce = %u \n", block.nNonce);
+        }
         //// debug print
         assert(block.hashMerkleRoot == uint256("0x96f872319c330aadbdc18543e27a305c6ab046801cfc81e20a004f3b26fad891"));
-        block.print();
+        if (GetBoolArg("-printblocks"))
+            block.print();
         assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
@@ -3375,12 +3380,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (pindex)
             pindex = pindex->pnext;
         int nLimit = 500;
-        printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str(), nLimit);
+        if (GetBoolArg("-printgetblocks"))
+            printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str(), nLimit);
         for (; pindex; pindex = pindex->pnext)
         {
             if (pindex->GetBlockHash() == hashStop)
             {
-                printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
+                if (GetBoolArg("-printblocks"))
+                    printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
                 // ppcoin: tell downloading node about the latest block if it's
 
                 if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
@@ -3392,7 +3399,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             {
                 // When this block is requested, we'll send an inv that'll make them
                 // getblocks the next batch of inventory.
-                printf("  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
+                if (GetBoolArg("-printblocks"))
+                    printf("  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }

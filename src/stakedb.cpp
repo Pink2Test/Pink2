@@ -167,7 +167,7 @@ void ThreadFlushStakeDB(void* parg)
     int64_t nLastStakeUpdate = GetTime();
     while (!fShutdown)
     {
-        MilliSleep(500);
+        MilliSleep(643); // Lets do this on a prime to limit collisions with other DBs.
 
         if (nLastSeen != nStakeDBUpdated)
         {

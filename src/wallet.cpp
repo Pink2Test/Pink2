@@ -456,10 +456,14 @@ void CWallet::WalletUpdateSpent(const CTransaction &tx, bool fBlock)
             {
                 CWalletTx& wtx = (*mi).second;
                 if (txin.prevout.n >= wtx.vout.size())
-                    printf("WalletUpdateSpent: bad wtx %s\n", wtx.GetHash().ToString().c_str());
+                {
+                    if (GetBoolArg("-printwalletupdates"))
+                        printf("WalletUpdateSpent: bad wtx %s\n", wtx.GetHash().ToString().c_str());
+                }
                 else if (!wtx.IsSpent(txin.prevout.n) && IsMine(wtx.vout[txin.prevout.n]))
                 {
-                    printf("WalletUpdateSpent found spent coin %s PINK %s\n", FormatMoney(wtx.GetCredit()).c_str(), wtx.GetHash().ToString().c_str());
+                    if (GetBoolArg("-printwalletupdates"))
+                        printf("WalletUpdateSpent found spent coin %s PINK %s\n", FormatMoney(wtx.GetCredit()).c_str(), wtx.GetHash().ToString().c_str());
                     wtx.MarkSpent(txin.prevout.n);
                     wtx.WriteToDisk();
                     NotifyTransactionChanged(this, txin.prevout.hash, CT_UPDATED);
@@ -552,9 +556,10 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
                     wtx.nTimeSmart = std::max(latestEntry, std::min(blocktime, latestNow));
                 }
                 else
-                    printf("AddToWallet() : found %s in block %s not in index\n",
-                           wtxIn.GetHash().ToString().substr(0,10).c_str(),
-                           wtxIn.hashBlock.ToString().c_str());
+                    if (GetBoolArg("-printwalletupdates"))
+                        printf("AddToWallet() : found %s in block %s not in index\n",
+                            wtxIn.GetHash().ToString().substr(0,10).c_str(),
+                            wtxIn.hashBlock.ToString().c_str());
             }
         }
 
@@ -582,7 +587,8 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
         }
 
         //// debug print
-        printf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString().substr(0,10).c_str(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""));
+        if (GetBoolArg("-printwalletupdates"))
+            printf("AddToWallet %s  %s%s\n", wtxIn.GetHash().ToString().substr(0,10).c_str(), (fInsertedNew ? "new" : ""), (fUpdated ? "update" : ""));
 
         // Write to disk
         if (fInsertedNew || fUpdated)
@@ -629,7 +635,7 @@ bool CWallet::AddToWallet(const CWalletTx& wtxIn)
 // Add a transaction to the wallet, or update it.
 // pblock is optional, but should be provided if the transaction is known to be in a block.
 // If fUpdate is true, existing transactions will be updated.
-bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate, bool fFindBlock)
+bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate, bool fStealthTx)
 {
     uint256 hash = tx.GetHash();
     {
@@ -638,7 +644,8 @@ bool CWallet::AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pbl
         if (fExisted && !fUpdate) return false;
         
         mapValue_t mapNarr;
-        FindStealthTransactions(tx, mapNarr);
+        if (fStealthTx)
+            FindStealthTransactions(tx, mapNarr);
         
         if (fExisted || IsMine(tx) || IsFromMe(tx))
         {
@@ -941,8 +948,11 @@ bool CWalletTx::WriteToDisk()
 int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
 {
     int ret = 0;
-
     CBlockIndex* pindex = pindexStart;
+    uint64_t nHeight = pindex->nHeight;
+    string bestHeight = to_string(pindexBest->nHeight).c_str();
+    uint32_t counter = 0;
+    string info = "";
     {
         LOCK2(cs_main, cs_wallet);
         while (pindex)
@@ -951,8 +961,11 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             // our wallet birthday (as adjusted for block time variability)
             if (nTimeFirstKey && (pindex->nTime < (nTimeFirstKey - 7200))) {
                 pindex = pindex->pnext;
+                nHeight = pindex->nHeight;
                 continue;
+
             }
+            counter++;
 
             CBlock block;
             block.ReadFromDisk(pindex, true);
@@ -961,6 +974,14 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
                 if (AddToWalletIfInvolvingMe(tx, &block, fUpdate))
                     ret++;
             }
+
+            if (counter == 100)
+            {
+                info = "Checked " + to_string(nHeight) + " of " + bestHeight;
+                uiInterface.InitMessage(_(info.c_str()));
+                counter = 0;
+            }
+            nHeight++;
             pindex = pindex->pnext;
         }
     }
