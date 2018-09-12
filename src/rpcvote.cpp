@@ -280,10 +280,10 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
     if (params.size() > 1)
         param1 = params[1].get_str();
 
-    int nSelect = stoi(param1);
+    uint8_t nSelect = stoul(param1);
     string checkSize = to_string(nSelect);
 
-    if (param1 != checkSize || nSelect > (int)POLL_OPTION_COUNT || params.size() > 2)
+    if (param1 != checkSize || nSelect > vIndex->current.poll->Option.size() || params.size() > 2)
         helpText = ("vote makeselection <selection number>\n"
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
@@ -293,14 +293,20 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         return;
 
-    if (nSelect > 0 && nSelect < (vIndex->current.poll->OpCount +1) && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
+    if (nSelect < (vIndex->current.poll->OpCount +1) && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
     {
-       vIndex->current.ballot->OpSelection = nSelect - 1;
-       string opSelection = "Option #" + to_string(nSelect);
-       retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
-       retObj.push_back(Pair(opSelection, vIndex->current.poll->Option[vIndex->current.ballot->OpSelection]));
+        vIndex->current.ballot->OpSelection = nSelect;
+        string opSelection = "Option #" + to_string(nSelect);
+        retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
+        if (vIndex->current.ballot->OpSelection > 0)
+            retObj.push_back(Pair(opSelection, vIndex->current.poll->Option[vIndex->current.ballot->OpSelection - 1]));
+        else
+            retObj.push_back(Pair("Option", "None Selected"));
 
-       CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
+        {
+            LOCK(vIndex->cs_wallet);
+            CVoteDB(vIndex->strWalletFile).WriteBallot(*vIndex->current.ballot);
+        }
     } else {
         throw runtime_error("Selection out of range.\n");
     }
@@ -714,9 +720,9 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
 
     vIndex->current.poll->Option.erase(it);
     vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
-    if (vIndex->current.ballot->OpSelection > (stoi(param1) - 1))
+    if (vIndex->current.ballot->OpSelection > (stoul(param1)))
         vIndex->current.ballot->OpSelection--;
-    else if (vIndex->current.ballot->OpSelection == (stoi(param1) - 1))
+    else if (vIndex->current.ballot->OpSelection == (stoul(param1)))
         vIndex->current.ballot->OpSelection = 0;
 
     vIndex->current.poll->nTally.erase(tit);
@@ -825,8 +831,8 @@ void ListPolls(Object& retObj, uint64_t& nPage, const LIST_POLL_TYPE& type)
 
             if (type == LIST_POLL_ACTIVE &&
                     p.ID != 0 &&
-                    p.Start > GetPollTime2(GetTime()) &&
-                    p.End < GetPollTime2(GetTime()))
+                    p.Start < GetPollTime2(GetTime()) &&
+                    p.End > GetPollTime2(GetTime()))
             {
                 counter++;
                 thisPage = (counter / 10) + 1;

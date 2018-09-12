@@ -232,9 +232,9 @@ void erasePoll(const CPollID& ID);
 
 uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t);
 bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots);
-bool verifyBallots(const BallotStack &stackBallots, vector<BallotStack::iterator>& badIt);
-void tallyBallots(const BallotStack &stackBallots, const bool undo = false);
-bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins);
+bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, vector<BallotStack::const_iterator> &badIt);
+void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool undo = false);
+bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins, const bool &undo);
 
 
 
