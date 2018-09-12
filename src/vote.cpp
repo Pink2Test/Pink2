@@ -15,6 +15,8 @@
 #include <iostream>
 #include <sstream>
 
+
+
 CVote::CVote()
 {
     clear();
@@ -866,8 +868,11 @@ bool isLocal()
     return (vIndex->pollCache.find(vIndex->current.poll->ID) == vIndex->pollCache.end());
 }
 
-uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t)
+bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, const uint64_t startFrom)
 {
+    if (vIndex->ballotStack.size() < startFrom + 1)
+        return false;
+
     PollStack *p = &vIndex->pollCache;
     unsigned char ballotPair = '\0';
     vector<unsigned char> IDPair;
@@ -879,13 +884,13 @@ uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE 
     mFlags.insert(make_pair(BLOCK_PROOF_FPOS, CVote::POLL_ALLOW_FPOS));
     mFlags.insert(make_pair(BLOCK_PROOF_POW, CVote::POLL_ALLOW_POW));
 
-    for (BallotStack::iterator bIt = vIndex->ballotStack.begin(); bIt != vIndex->ballotStack.end(); bIt++)
+    for (BallotStack::const_iterator bIt = next(vIndex->ballotStack.begin(), startFrom); bIt != vIndex->ballotStack.end(); bIt++)
     {
         CPollIDDest vchID(bIt->first);
-        unsigned char &vchVote = bIt->second.OpSelection;
+        const unsigned char &vchVote = bIt->second.OpSelection;
 
         if (p->find(vchID.ID) != p->end() && (p->at(vchID.ID).Flags & mFlags.at(t)) &&
-                count <= 100 && p->at(vchID.ID).isActive())
+                count < 100 && p->at(vchID.ID).isActive())
         {
             IDPair.insert(IDPair.end(), vchID.begin(), vchID.end());
             ballotPair &= first ? vchVote : (vchVote << 4);
@@ -907,23 +912,130 @@ uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE 
         vchBallots.insert(vchBallots.end(), ballotPair);
     }
 
-    return count;
+
+    vchBallots.insert(vchBallots.begin(), count);
+    return (count > 0);
 }
 
 bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots)
 {
-    return true;
+    CVoteBallot ballot;
+    CPollIDDest holder;
+    uint8_t count = 0;
+    uint8_t checkCount = 0;
+    vector<unsigned char> workBallots(vchBallots.begin(), vchBallots.end());
+    if (vchBallots.size() > 5)
+    {
+        checkCount = *workBallots.begin();
+        workBallots.erase(workBallots.begin());
+    } else {
+        return false;
+    }
+
+    // Simple, fast.
+    while (true)
+    {
+        if (workBallots.size() > 8)
+        {
+            holder = *(workBallots.begin(), workBallots.begin()+4);
+            ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
+            ballot.PollID = holder.ID;
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
+
+            holder = *(workBallots.begin()+4, workBallots.begin()+8);
+            ballot.OpSelection = ((*workBallots.begin()+9) >> 4);
+            ballot.PollID = holder.ID;
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
+
+            workBallots.erase(workBallots.begin(), workBallots.begin()+9);
+            count += 2;
+        } else if (workBallots.size() == 5)
+        {
+            holder = *(workBallots.begin(), workBallots.begin()+4);
+            ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
+            ballot.PollID = holder.ID;
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
+
+            workBallots.erase(workBallots.begin(), workBallots.begin()+5);
+            count++;
+        } else if (workBallots.size() == 0) {
+            if (count == checkCount)
+                return true;
+            else
+                return false; // Number of ballots doesn't match count.
+        } else {
+            return false; // Incorrect number of elements. Unable to be sure we have accurate ballots.
+        }
+    }
 
 }
-bool verifyBallots(const BallotStack &stackBallots, vector<BallotStack::iterator>& badIt)
+bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, vector<BallotStack::const_iterator> &badIt)
 {
-    return true;
-}
-void tallyBallots(const BallotStack &stackBallots, const bool undo)
-{
+    bool allGood = true;
+
+    map<BLOCK_PROOF_TYPE, CVote::flags> mFlags;
+    mFlags.insert(make_pair(BLOCK_PROOF_POS, CVote::POLL_ALLOW_POS));
+    mFlags.insert(make_pair(BLOCK_PROOF_FPOS, CVote::POLL_ALLOW_FPOS));
+    mFlags.insert(make_pair(BLOCK_PROOF_POW, CVote::POLL_ALLOW_POW));
+
+    for (BallotStack::const_iterator bIt = stackBallots.begin(); bIt != stackBallots.end(); bIt++)
+    {
+        PollStack::iterator pIt = vIndex->pollCache.find(bIt->first);
+        if (pIt == vIndex->pollCache.end() || !(pIt->second.Flags & mFlags.at(t)) ||
+                ( bIt->second.OpSelection != 0 && bIt->second.OpSelection > pIt->second.nTally.size()))
+        {
+            badIt.push_back(bIt);
+            allGood = false;
+        }
+    }
+    return allGood;
 
 }
-bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins)
+void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool undo)
 {
+    vector<BallotStack::const_iterator> badIt;
+    BallotStack workStack = stackBallots;
+    if (!verifyBallots(stackBallots, t, badIt))
+    {
+        for (vector<BallotStack::const_iterator>::const_iterator remIt = badIt.begin(); remIt != badIt.end(); remIt++)
+            workStack.erase(*remIt);
+        printf("Removed %" PRIszu " bad ballots.\n", badIt.size());
+    }
+
+    {
+        LOCK(vIndex->cs_wallet);
+        for (BallotStack::const_iterator bIt = stackBallots.begin(); bIt != stackBallots.end(); bIt++)
+        {
+            const CVoteBallot &ballotVote = bIt->second;
+            vector<CVoteTally>::iterator onPoll = (vIndex->pollCache.at(bIt->first).nTally.begin()+ballotVote.OpSelection);
+
+            if (t == BLOCK_PROOF_POS)
+            {
+                onPoll->POS = undo ? onPoll->POS - 1 : onPoll->POS + 1;
+            } else if (t == BLOCK_PROOF_FPOS)
+            {
+                onPoll->FPOS = undo ? onPoll->FPOS - 1 : onPoll->FPOS + 1;
+            } else if (t == BLOCK_PROOF_POW)
+            {
+                onPoll->POW = undo ? onPoll->POW - 1 : onPoll->POW + 1;
+            }
+
+            CVoteDB(vIndex->strWalletFile).WriteVote(vIndex->pollCache.at(bIt->first), false);
+        }
+    }
+}
+bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins, const bool &undo)
+{
+    PollStack::iterator pIt = vIndex->pollCache.find(txBallot.PollID);
+    if (pIt != vIndex->pollCache.end() && txBallot.OpSelection <= pIt->second.nTally.size())
+    {
+        CVoteTally &tallyTx = *(pIt->second.nTally.begin()+txBallot.OpSelection);
+        tallyTx.D4L = undo ? tallyTx.D4L -(nCoins/COIN) : tallyTx.D4L + (nCoins/COIN);
+
+        LOCK(vIndex->cs_wallet);
+        CVoteDB(vIndex->strWalletFile).WriteVote(pIt->second, false);
+    } else {
+        return false;
+    }
     return true;
 }
