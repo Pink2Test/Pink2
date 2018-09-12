@@ -45,7 +45,7 @@ enum txnouttype
     TX_VOTEPOLL,
     TX_VOTEBALLOTS,
     TX_PAY2POLL,
-    TX_D4LBALLOT,
+    TX_BALLOT,
     TX_MULTISIG,
     TX_NULL_DATA,
 };

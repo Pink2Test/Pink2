@@ -1082,7 +1082,7 @@ void BitcoinGUI::incomingTransaction(const QModelIndex & parent, int start, int 
 
     fNotificationLevel = walletModel->getOptionsModel()->getNotificationLevel();
 
-    if(fNotificationLevel != tr("Disable Notifications"))
+    if(fNotificationLevel != tr("Disable Notifications") && fGlobalNotifications)
     {
         if(!clientModel->inInitialBlockDownload())
         {

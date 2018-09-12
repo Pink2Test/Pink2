@@ -43,6 +43,14 @@ enum LIST_POLL_TYPE {
 
 };
 
+enum BLOCK_PROOF_TYPE {
+
+    BLOCK_PROOF_POS,
+    BLOCK_PROOF_FPOS,
+    BLOCK_PROOF_POW,
+
+};
+
 struct CVoteBallot
 {
     CVoteBallot() { clear(); }
@@ -100,6 +108,7 @@ struct CVotePoll
     bool isLocal();
     bool isMine();
     bool isValid();
+    bool isActive();
     bool hasEnded();
     bool haveParent();
     bool parentEnded();
@@ -220,6 +229,13 @@ bool isLocal();
 
 void erasePoll(const uint256 &hash);
 void erasePoll(const CPollID& ID);
+
+uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t);
+bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots);
+bool verifyBallots(const BallotStack &stackBallots, vector<BallotStack::iterator>& badIt);
+void tallyBallots(const BallotStack &stackBallots, const bool undo = false);
+bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins);
+
 
 
 #endif // VOTE_H

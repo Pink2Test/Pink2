@@ -9,6 +9,7 @@
 #include "init.h"
 #include "util.h"
 #include "zlib.h"
+#include "script.h"
 #include <random>
 #include <string>
 #include <iostream>
@@ -69,6 +70,12 @@ void CVotePoll::pollCopy(const CVotePoll& poll)
 bool CVotePoll::isValid()
 {
     return true; // for now.
+}
+
+bool CVotePoll::isActive()
+{
+    CPollTime pbNow = GetPollTime2(pindexBest->nTime);
+    return (Start < pbNow && pbNow < End);
 }
 
 bool CVotePoll::haveParent()
@@ -807,6 +814,8 @@ bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll* inPoll)
         return false;
     }
 }
+
+
 bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly)
 {
     return false;
@@ -855,4 +864,66 @@ void erasePoll(const CPollID& ID)
 bool isLocal()
 {
     return (vIndex->pollCache.find(vIndex->current.poll->ID) == vIndex->pollCache.end());
+}
+
+uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t)
+{
+    PollStack *p = &vIndex->pollCache;
+    unsigned char ballotPair = '\0';
+    vector<unsigned char> IDPair;
+    bool first = true;
+    uint8_t count = 0;
+
+    map<BLOCK_PROOF_TYPE, CVote::flags> mFlags;
+    mFlags.insert(make_pair(BLOCK_PROOF_POS, CVote::POLL_ALLOW_POS));
+    mFlags.insert(make_pair(BLOCK_PROOF_FPOS, CVote::POLL_ALLOW_FPOS));
+    mFlags.insert(make_pair(BLOCK_PROOF_POW, CVote::POLL_ALLOW_POW));
+
+    for (BallotStack::iterator bIt = vIndex->ballotStack.begin(); bIt != vIndex->ballotStack.end(); bIt++)
+    {
+        CPollIDDest vchID(bIt->first);
+        unsigned char &vchVote = bIt->second.OpSelection;
+
+        if (p->find(vchID.ID) != p->end() && (p->at(vchID.ID).Flags & mFlags.at(t)) &&
+                count <= 100 && p->at(vchID.ID).isActive())
+        {
+            IDPair.insert(IDPair.end(), vchID.begin(), vchID.end());
+            ballotPair &= first ? vchVote : (vchVote << 4);
+
+            if (!first)
+            {
+                vchBallots.insert(vchBallots.end(), IDPair.begin(), IDPair.end());
+                vchBallots.insert(vchBallots.end(), ballotPair);
+                IDPair.clear();
+                ballotPair = '\0';
+            }
+            first = !first;
+            count++;
+        }
+    }
+    if (!first)
+    {
+        vchBallots.insert(vchBallots.end(), IDPair.begin(), IDPair.end());
+        vchBallots.insert(vchBallots.end(), ballotPair);
+    }
+
+    return count;
+}
+
+bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots)
+{
+    return true;
+
+}
+bool verifyBallots(const BallotStack &stackBallots, vector<BallotStack::iterator>& badIt)
+{
+    return true;
+}
+void tallyBallots(const BallotStack &stackBallots, const bool undo)
+{
+
+}
+bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins)
+{
+    return true;
 }

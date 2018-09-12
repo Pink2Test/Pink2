@@ -764,7 +764,7 @@ void ThreadFlushVoteDB(void* parg)
     int64_t nLastVoteUpdate = GetTime();
     while (!fShutdown)
     {
-        MilliSleep(100);
+        MilliSleep(349);  // Lets do this on a prime to limit collisions with other DB's.
 
         if (nLastSeen != nVoteDBUpdated)
         {
