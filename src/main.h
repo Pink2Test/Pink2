@@ -25,11 +25,14 @@ class CAddress;
 class CInv;
 class CNode;
 
+// Max size of a ballot blockstack + a few safety bytes.
+// (A 100 Ballot blockstack is 450 bytes, +1 for the count byte and +1 for OP_VOTE)
+static const unsigned int MAX_VOTE_SIZE = 455;
+
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
-static const unsigned int MAX_VOTE_SIZE = 466; // Max size of uncompressed poll.
-static const unsigned int FEEPOOL_RELEASE_RATE = 100000;
+static const unsigned int FEEPOOL_RELEASE_RATE = 100000; // The feepool divided by this is released every block.
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MIN_PEERS = 7; // Require a good connection to the network for staking.
@@ -56,8 +59,6 @@ inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 1
 
 extern bool fGlobalNotifications;
 extern CScript COINBASE_FLAGS;
-extern CScript VOTE_CASTING;
-extern CScript VOTE_BALLOT;
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;

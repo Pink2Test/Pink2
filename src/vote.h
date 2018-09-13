@@ -230,7 +230,7 @@ bool isLocal();
 void erasePoll(const uint256 &hash);
 void erasePoll(const CPollID& ID);
 
-uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t);
+bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, const uint64_t startFrom = 0);
 bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots);
 bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, vector<BallotStack::const_iterator> &badIt);
 void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool undo = false);
