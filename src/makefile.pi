@@ -134,8 +134,8 @@ OBJS= \
 	obj/stakedb.o \
 	obj/smessage.o \
 	obj/stealth.o \
-	obj/votedb.o \
-	obj/vote.o
+    obj/votedb.o \
+    obj/vote.o
 
 
 all: pink2d

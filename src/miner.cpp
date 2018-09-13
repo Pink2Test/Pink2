@@ -7,6 +7,8 @@
 #include "txdb.h"
 #include "miner.h"
 #include "kernel.h"
+#include "init.h"
+#include "vote.h"
 
 using namespace std;
 
@@ -138,20 +140,40 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
         time_t rawtime;
         time ( &rawtime );
 
-        VOTE_CASTING.clear();
-
-        if (VOTE_BALLOT != VOTE_CASTING && !IsFlashStake(rawtime))
-        {
-            if (COINBASE_FLAGS.Find(OP_VOTE) < 1)
-                COINBASE_FLAGS += (CScript() << OP_VOTE);
-            VOTE_CASTING = VOTE_BALLOT;
-        }
-
         // Height first in coinbase required for block.version=2
-        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS + VOTE_CASTING;
+        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS;
         assert(txNew.vin[0].scriptSig.size() <= 100);
 
         txNew.vout[0].SetEmpty();
+
+        if (!fProofOfStake && vIndex->ballotStack.size() > 0)
+        {
+                vector<vector<unsigned char>> ballotBlock;
+                BallotStack checkStack;
+                ballotBlock.resize(1);
+
+                selectBallots(ballotBlock[0], BLOCK_PROOF_POW);
+
+                bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0);
+                uint8_t i = 0;
+                while (okBallots && i < 3 && ballotBlock[i].size() > 0 && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
+                {
+                    i++;
+                    ballotBlock.resize(i+1);
+                    selectBallots(ballotBlock[i], BLOCK_PROOF_POW, 100 * i);
+                    okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0);
+                }
+
+                if (!okBallots)
+                    ballotBlock.erase(ballotBlock.begin()+i);
+
+
+                for (uint8_t i = 0; i < ballotBlock.size(); i++)
+                {
+                    txNew.vout.resize(i+2);
+                    txNew.vout[i+1].scriptPubKey = CScript() << OP_VOTE <= ballotBlock[i];
+                }
+        }
     }
 
     // Add our coinbase tx as first transaction
