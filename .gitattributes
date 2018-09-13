@@ -1,2 +1,2 @@
 src/version.cpp export-subst
-.circleci/config.yml
+.circleci/config.yml merge=ours
