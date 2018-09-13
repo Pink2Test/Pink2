@@ -19,6 +19,7 @@
 #include <utility>
 #include <vector>
 #include <string>
+#include <random>
 
 #include <boost/thread.hpp>
 #include <boost/filesystem.hpp>
@@ -39,6 +40,7 @@
 
 static const int64_t COIN = 100000000;
 static const int64_t CENT = 1000000;
+static const bool forceTestnet = true;
 
 #define BEGIN(a)            ((char*)&(a))
 #define END(a)              ((char*)&((&(a))[1]))
@@ -212,6 +214,8 @@ std::string FormatFullVersion();
 std::string FormatSubVersion(const std::string& name, int nClientVersion, const std::vector<std::string>& comments);
 void AddTimeData(const CNetAddr& ip, int64_t nTime);
 void runCommand(std::string strCommand);
+uint32_t rGen32();
+void charZip(std::vector<unsigned char> &charIn, std::vector<unsigned char> &charOut, bool decompress = false);
 
 
 

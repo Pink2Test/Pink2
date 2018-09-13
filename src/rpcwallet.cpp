@@ -97,6 +97,7 @@ Value getinfo(const Array& params, bool fHelp)
     obj.push_back(Pair("blocks",        (int)nBestHeight));
     obj.push_back(Pair("timeoffset",    (int64_t)GetTimeOffset()));
     obj.push_back(Pair("moneysupply",   ValueFromAmount(pindexBest->nMoneySupply)));
+    obj.push_back(Pair("FeePool",       ValueFromAmount(pindexBest->nFeePool)));
     obj.push_back(Pair("connections",   (int)vNodes.size()));
     obj.push_back(Pair("proxy",         (proxy.first.IsValid() ? proxy.first.ToStringIPPort() : string())));
     obj.push_back(Pair("ip",            addrSeenByPeer.ToStringIP()));
@@ -1625,6 +1626,12 @@ public:
             obj.push_back(Pair("sigsrequired", nRequired));
         return obj;
     }
+
+    Object operator()(const CPollIDDest &pollID) const {
+        Object obj;
+        obj.push_back(Pair("PollID", to_string(pollID.ID)));
+        return obj;
+    }
     
     Object operator()(const CStealthAddress &stxAddr) const {
         Object obj;
@@ -2120,7 +2127,7 @@ Value clearwallettransactions(const Array& params, bool fHelp)
     if (fHelp || params.size() > 0)
         throw runtime_error(
             "clearwallettransactions \n"
-            "delete all transactions from wallet - reload with scanforalltxns\n"
+            "delete all transactions from wallet - reload with scanforalltxns and scanforstealthtxns (if you use them)\n"
             "Warning: Backup your wallet first!");
     
     
@@ -2129,7 +2136,8 @@ Value clearwallettransactions(const Array& params, bool fHelp)
     
     uint32_t nTransactions = 0;
     
-    char cbuf[256];
+    // char cbuf[256];
+    vector<string> vWarning;
     
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
@@ -2159,7 +2167,7 @@ Value clearwallettransactions(const Array& params, bool fHelp)
         
         datValue.set_ulen(vchValueData.size());
         datValue.set_data(&vchValueData[0]);
-        
+
         unsigned int fFlags = DB_NEXT; // same as using DB_FIRST for new cursor
         while (true)
         {
@@ -2191,8 +2199,8 @@ Value clearwallettransactions(const Array& params, bool fHelp)
             if (datKey.get_data() == NULL || datValue.get_data() == NULL
                 || ret != 0)
             {
-                snprintf(cbuf, sizeof(cbuf), "wallet DB error %d, %s", ret, db_strerror(ret));
-                throw runtime_error(cbuf);
+                string strError = "wallet DB error " + to_string(ret) + " " + db_strerror(ret);
+                throw runtime_error(strError.c_str());
             };
             
             CDataStream ssValue(SER_DISK, CLIENT_VERSION);
@@ -2205,8 +2213,6 @@ Value clearwallettransactions(const Array& params, bool fHelp)
             
             std::string strType(vchType.begin(), vchType.end());
             
-            //printf("strType %s\n", strType.c_str());
-            
             if (strType == "tx")
             {
                 uint256 hash;
@@ -2214,7 +2220,8 @@ Value clearwallettransactions(const Array& params, bool fHelp)
                 
                 if ((ret = pcursor->del(0)) != 0)
                 {
-                    printf("Delete transaction failed %d, %s\n", ret, db_strerror(ret));
+                    string strWarning = "Delete transaction failed " +  to_string(ret) + " " + db_strerror(ret);
+                    vWarning.push_back(strWarning);
                     continue;
                 };
                 
@@ -2230,10 +2237,20 @@ Value clearwallettransactions(const Array& params, bool fHelp)
         
         //pwalletMain->mapWallet.clear();
     }
-    
-    snprintf(cbuf, sizeof(cbuf), "Removed %u transactions.", nTransactions);
-    result.push_back(Pair("complete", std::string(cbuf)));
-    result.push_back(Pair("", "Reload with scanforstealthtxns or re-download blockchain."));
+
+    string retStr = "Removed " + to_string(nTransactions) + " transactions.";
+    result.push_back(Pair("complete", retStr));
+
+    result.push_back(Pair("Information", "Reload with scanforalltxns and scanforstealthtxns (if you use them)."));
+
+    if (vWarning.size() > 0)
+        result.push_back(Pair("Warnings", to_string(vWarning.size())));
+
+    for (uint32_t i = 0; i < vWarning.size() ; i++)
+    {
+        result.push_back(Pair(("Warning #" + to_string(i)), vWarning[i]));
+    }
+
     
     
     return result;
@@ -2253,7 +2270,7 @@ Value scanforalltxns(const Array& params, bool fHelp)
     
     
     if (params.size() > 0)
-        nFromHeight = params[0].get_int();
+        nFromHeight = stoul(params[0].get_str());
     
     
     if (nFromHeight > 0)
@@ -2266,18 +2283,27 @@ Value scanforalltxns(const Array& params, bool fHelp)
     
     if (pindex == NULL)
         throw runtime_error("Genesis Block is not set.");
-    
+
+    bool holdGlobalNotifications = fGlobalNotifications;
+    fGlobalNotifications = false;
+
+    uint64_t nStart;
     {
         LOCK2(cs_main, pwalletMain->cs_wallet);
-        
+
+        nStart = GetTimeMillis();
+
         pwalletMain->MarkDirty();
-        
+        nStart = GetTimeMillis();
         pwalletMain->ScanForWalletTransactions(pindex, true);
-        pwalletMain->ReacceptWalletTransactions();
+
+        printf(" rescan      %15" PRId64 "ms\n", GetTimeMillis() - nStart);
+        // pwalletMain->ReacceptWalletTransactions();
     }
     
     result.push_back(Pair("result", "Scan complete."));
     
+    fGlobalNotifications = holdGlobalNotifications;
     return result;
 }
 
@@ -2330,7 +2356,7 @@ Value scanforstealthtxns(const Array& params, bool fHelp)
                 continue; // leave out coinbase and others
             nTransactions++;
             
-            pwalletMain->AddToWalletIfInvolvingMe(tx, &block, fUpdate);
+            pwalletMain->AddToWalletIfInvolvingMe(tx, &block, fUpdate, true);
         };
         
         pindex = pindex->pnext;

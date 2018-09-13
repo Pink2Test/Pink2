@@ -107,7 +107,7 @@ public:
 };
 
 // CreateNewBlock: create new block (without proof-of-work/proof-of-stake)
-CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
+CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int64_t* pPoolFees)
 {
     // Create new block
     unique_ptr<CBlock> pblock(new CBlock());
@@ -135,8 +135,20 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
     }
     else
     {
+        time_t rawtime;
+        time ( &rawtime );
+
+        VOTE_CASTING.clear();
+
+        if (VOTE_BALLOT != VOTE_CASTING && !IsFlashStake(rawtime))
+        {
+            if (COINBASE_FLAGS.Find(OP_VOTE) < 1)
+                COINBASE_FLAGS += (CScript() << OP_VOTE);
+            VOTE_CASTING = VOTE_BALLOT;
+        }
+
         // Height first in coinbase required for block.version=2
-        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS;
+        txNew.vin[0].scriptSig = (CScript() << nHeight) + COINBASE_FLAGS + VOTE_CASTING;
         assert(txNew.vin[0].scriptSig.size() <= 100);
 
         txNew.vout[0].SetEmpty();
@@ -177,6 +189,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
 
     // Collect memory pool transactions into the block
     int64_t nFees = 0;
+    int64_t nFeePool = 0;
     {
         LOCK2(cs_main, mempool.cs);
         CTxDB txdb("r");
@@ -316,6 +329,15 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
                 continue;
 
             int64_t nTxFees = tx.GetValueIn(mapInputs)-tx.GetValueOut();
+
+            if (tx.vout[0].scriptPubKey.IsVotePoll())
+            {
+                if (nTxFees < VOTE_FEE)
+                    continue;
+
+                nTxFees -= VOTE_FEE;
+                nFeePool += VOTE_FEE;
+            }
             if (nTxFees < nMinFee)
                 continue;
 
@@ -367,8 +389,13 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees)
             printf("CreateNewBlock(): total size %" PRIu64"\n", nBlockSize);
 
         if (!fProofOfStake)
-            pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nHeight, nFees);
+        {
+            int64_t nPoolFees = (pindexPrev->nFeePool + nFeePool) / FEEPOOL_RELEASE_RATE;
+            pblock->vtx[0].vout[0].nValue = GetProofOfWorkReward(nHeight, nFees, nPoolFees);
+        }
 
+        if (pPoolFees)
+            *pPoolFees = (pindexPrev->nFeePool + nFeePool) / FEEPOOL_RELEASE_RATE;
         if (pFees)
             *pFees = nFees;
 
@@ -579,12 +606,13 @@ void StakeMiner(CWallet *pwallet)
         // Create new block
         //
         int64_t nFees;
-        unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees));
+        int64_t nPoolFees;
+        unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees, &nPoolFees));
         if (!pblock.get())
             return;
 
         // Trying to sign a block
-        if (pblock->SignBlock(*pwallet, nFees))
+        if (pblock->SignBlock(*pwallet, nFees, nPoolFees))
         {
             SetThreadPriority(THREAD_PRIORITY_NORMAL);
             CheckStake(pblock.get(), *pwallet);

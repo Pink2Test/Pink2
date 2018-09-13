@@ -73,8 +73,19 @@ public:
             LOCK2(cs_main, wallet->cs_wallet);
             for(std::map<uint256, CWalletTx>::iterator it = wallet->mapWallet.begin(); it != wallet->mapWallet.end(); ++it)
             {
-                if(TransactionRecord::showTransaction(it->second))
-                    cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
+                cachedWallet.append(TransactionRecord::decomposeTransaction(wallet, it->second));
+
+                if (cachedWallet.size() > 10000)
+                {
+                    for( int t = 0 ; t < cachedWallet.size() ; t++ )
+                    {
+                        if (cachedWallet.at(t).time < pindexBest->nTime - 60 * 60 * 24 * 30 && cachedWallet.at(t).type == TransactionRecord::StakeMint && fTestNet)
+                        {
+                            cachedWallet.removeAt(t);
+                        }
+                    }
+
+                }
             }
         }
     }
@@ -114,8 +125,8 @@ public:
                 if(!showTransaction && inModel)
                     status = CT_DELETED; /* In model, but want to hide, treat as deleted */
             }
-
-            OutputDebugStringF("   inWallet=%i inModel=%i Index=%i-%i showTransaction=%i derivedStatus=%i\n",
+            if (GetBoolArg("-printwalletupdates"))
+                OutputDebugStringF("   inWallet=%i inModel=%i Index=%i-%i showTransaction=%i derivedStatus=%i\n",
                      inWallet, inModel, lowerIndex, upperIndex, showTransaction, status);
 
             switch(status)

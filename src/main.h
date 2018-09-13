@@ -14,6 +14,7 @@
 #include <list>
 
 class CWallet;
+class CVote;
 class CBlock;
 class CBlockIndex;
 class CKeyItem;
@@ -27,10 +28,15 @@ class CNode;
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
+static const unsigned int MAX_VOTE_SIZE = 466; // Max size of uncompressed poll.
+static const unsigned int FEEPOOL_RELEASE_RATE = 100000;
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MIN_PEERS = 7; // Require a good connection to the network for staking.
 static const unsigned int nHalvingPoint = 2;
+static const time_t VOTE_START_DATE = 1539475200; // 10/14/2018 @ 12:00am (UTC)
+static const time_t FPOS2_START_DATE = 1538265600; // 09/30/2018 @ 12:00am (UTC)
+static const int64_t VOTE_FEE = 100 * COIN;
 static const int64_t MIN_TX_FEE = 10000;
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const int64_t MAX_MONEY = 500000000 * COIN;
@@ -48,7 +54,10 @@ static const uint256 hashGenesisBlockTestNet("0x000076a007b949e5f8cdee6c18817d26
 inline int64_t PastDrift(int64_t nTime)   { return nTime - 10 * 60; } // up to 10 minutes from the past
 inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 10 minutes from the future
 
+extern bool fGlobalNotifications;
 extern CScript COINBASE_FLAGS;
+extern CScript VOTE_CASTING;
+extern CScript VOTE_BALLOT;
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;
@@ -96,6 +105,8 @@ class CTxIndex;
 
 void RegisterWallet(CWallet* pwalletIn);
 void UnregisterWallet(CWallet* pwalletIn);
+void RegisterWallet(CVote* pwalletIn);
+void UnregisterWallet(CVote* pwalletIn);
 void SyncWithWallets(const CTransaction& tx, const CBlock* pblock = NULL, bool fUpdate = false, bool fConnect = true);
 bool ProcessBlock(CNode* pfrom, CBlock* pblock);
 bool CheckDiskSpace(uint64_t nAdditionalBytes=0);
@@ -110,8 +121,8 @@ bool LoadExternalBlockFile(FILE* fileIn);
 
 bool CheckProofOfWork(uint256 hash, unsigned int nBits);
 unsigned int GetNextTargetRequired(const CBlockIndex* pindexLast, bool fProofOfStake, unsigned int nBlockTime = 0);
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees);
-int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int nHeight, unsigned int nTime);
+int64_t GetProofOfWorkReward(int nHeight, int64_t nFees, int64_t nFeeFromPool);
+int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int64_t nFeeFromPool, int nHeight, unsigned int nTime);
 unsigned int ComputeMinWork(unsigned int nBase, int64_t nTime);
 unsigned int ComputeMinStake(unsigned int nBase, int64_t nTime, unsigned int nBlockTime);
 int GetNumBlocksOfPeers();
@@ -531,6 +542,15 @@ public:
     {
         // ppcoin: the coin stake transaction is marked with the first output empty
         return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+    }
+
+    bool IsVotePoll() const
+    {
+        if (vin.size () > 0 && !(vout[0].scriptPubKey.begin() == vout[0].scriptPubKey.end()))
+        {
+            return vout[0].scriptPubKey.IsVotePoll();
+        }
+        return false;
     }
 
     /** Check for standard transaction types
@@ -1092,7 +1112,7 @@ public:
     bool CheckBlock(bool fCheckPOW=true, bool fCheckMerkleRoot=true, bool fCheckSig=true) const;
     bool AcceptBlock();
     bool GetCoinAge(uint64_t& nCoinAge) const; // ppcoin: calculate total coin age spent in block
-    bool SignBlock(CWallet& keystore, int64_t nFees);
+    bool SignBlock(CWallet& keystore, int64_t nFees, int64_t nPoolFees);
     bool CheckBlockSignature() const;
 
 private:
@@ -1124,6 +1144,7 @@ public:
 
     int64_t nMint;
     int64_t nMoneySupply;
+    int64_t nFeePool;
 
     unsigned int nFlags;  // ppcoin: block index flags
     enum  
@@ -1131,6 +1152,7 @@ public:
         BLOCK_PROOF_OF_STAKE = (1 << 0), // is proof-of-stake block
         BLOCK_STAKE_ENTROPY  = (1 << 1), // entropy bit for stake modifier
         BLOCK_STAKE_MODIFIER = (1 << 2), // regenerated stake modifier
+        BLOCK_FEE_POOL       = (1 << 3), // started fee pool logging
     };
 
     uint64_t nStakeModifier; // hash modifier for proof-of-stake
@@ -1159,6 +1181,7 @@ public:
         nChainTrust = 0;
         nMint = 0;
         nMoneySupply = 0;
+        nFeePool = 0;
         nFlags = 0;
         nStakeModifier = 0;
         hashProof = 0;
@@ -1183,6 +1206,7 @@ public:
         nChainTrust = 0;
         nMint = 0;
         nMoneySupply = 0;
+        nFeePool = 0;
         nFlags = 0;
         nStakeModifier = 0;
         hashProof = 0;
@@ -1279,6 +1303,11 @@ public:
         return (nFlags & BLOCK_PROOF_OF_STAKE);
     }
 
+    bool HaveFeePool() const
+    {
+        return (nFlags & BLOCK_FEE_POOL);
+    }
+
     bool IsFlashPOS() const
     {
         if (IsProofOfStake())
@@ -1319,9 +1348,10 @@ public:
 
     std::string ToString() const
     {
-        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%-6d nHeight=%d, nMint=%s, nMoneySupply=%s, nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64", hashProof=%s, prevoutStake=(%s), nStakeTime=%d merkle=%s, hashBlock=%s)",
+        printf("\nWDEBUG: Trying to print CBlockIndex\n\n");
+        return strprintf("CBlockIndex(nprev=%p, pnext=%p, nFile=%u, nBlockPos=%-6d nHeight=%d, nMint=%s, nMoneySupply=%s, nFeePool=%s nFlags=(%s)(%d)(%s), nStakeModifier=%016" PRIx64", hashProof=%s, prevoutStake=(%s), nStakeTime=%d merkle=%s, hashBlock=%s)",
             pprev, pnext, nFile, nBlockPos, nHeight,
-            FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(),
+            FormatMoney(nMint).c_str(), FormatMoney(nMoneySupply).c_str(), FormatMoney(nFeePool).c_str(),
             GeneratedStakeModifier() ? "MOD" : "-", GetStakeEntropyBit(), IsProofOfStake()? "PoS" : "PoW",
             nStakeModifier,
             hashProof.ToString().c_str(),
@@ -1353,6 +1383,7 @@ public:
         hashPrev = 0;
         hashNext = 0;
         blockHash = 0;
+        nFeePool = 0;
     }
 
     explicit CDiskBlockIndex(CBlockIndex* pindex) : CBlockIndex(*pindex)
@@ -1394,6 +1425,10 @@ public:
         READWRITE(nBits);
         READWRITE(nNonce);
         READWRITE(blockHash);
+
+        // fee pool
+        if (HaveFeePool())
+            READWRITE(nFeePool);
     )
 
     uint256 GetBlockHash() const

@@ -17,6 +17,7 @@
 #include "script.h"
 #include "ui_interface.h"
 #include "util.h"
+#include "votedb.h"
 #include "stakedb.h"
 #include "walletdb.h"
 #include "stealth.h"
@@ -202,7 +203,7 @@ public:
 
     void MarkDirty();
     bool AddToWallet(const CWalletTx& wtxIn);
-    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate = false, bool fFindBlock = false);
+    bool AddToWalletIfInvolvingMe(const CTransaction& tx, const CBlock* pblock, bool fUpdate = false, bool fStealthTx = false);
     bool EraseFromWallet(uint256 hash);
     void WalletUpdateSpent(const CTransaction& prevout, bool fBlock = false);
     int ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate = false);
@@ -220,12 +221,13 @@ public:
     bool CommitTransaction(CWalletTx& wtxNew, CReserveKey& reservekey);
 
     bool GetStakeWeight(const CKeyStore& keystore, uint64_t& nMinWeight, uint64_t& nMaxWeight, uint64_t& nWeight);
-    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, int64_t nFees, CTransaction& txNew, CKey& key);
+    bool CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int64_t nSearchInterval, int64_t nFees, int64_t nPoolFees, CTransaction& txNew, CKey& key);
     int64_t AggregateStakeOut(CTransaction &txNew, int64_t &nReward);
     int64_t CountStakeOut();
 
     std::string SendMoney(CScript scriptPubKey, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, bool fAskFee=false);
     std::string SendMoneyToDestination(const CTxDestination& address, int64_t nValue, std::string& sNarr, CWalletTx& wtxNew, bool fAskFee=false);
+    std::string SubmitPollTx(CScript& scriptPubKey, CWalletTx& wtxNew);
 
     
     bool NewStealthAddress(std::string& sError, std::string& sLabel, CStealthAddress& sxAddr);
@@ -251,6 +253,7 @@ public:
 
     std::set< std::set<CTxDestination> > GetAddressGroupings();
     std::map<CTxDestination, int64_t> GetAddressBalances();
+    int64_t GetAddressBalance(const CTxDestination& address);
 
     bool IsMine(const CTxIn& txin) const;
     int64_t GetDebit(const CTxIn& txin) const;
@@ -330,6 +333,7 @@ public:
 
     DBErrors LoadWallet(bool& fFirstRunRet);
     SDBErrors LoadStakeDB(bool& fFirstRunRet);
+    VDBErrors LoadVoteDB(bool& fFirstRunRet);
 
     bool SetAddressBookName(const CTxDestination& address, const std::string& strName);
 
@@ -450,6 +454,8 @@ public:
     unsigned int nTimeSmart;
     char fFromMe;
     std::string strFromAccount;
+    std::string strFromAddress;
+    bool isPoll;
     std::vector<char> vfSpent; // which outputs are already spent
     int64_t nOrderPos;  // position in ordered transaction list
 
@@ -494,6 +500,8 @@ public:
         nTimeSmart = 0;
         fFromMe = false;
         strFromAccount.clear();
+        strFromAddress.clear();
+        isPoll=false;
         vfSpent.clear();
         fDebitCached = false;
         fCreditCached = false;

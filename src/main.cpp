@@ -76,6 +76,10 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
 
+// POS Voting:
+CScript VOTE_CASTING;
+CScript VOTE_BALLOT;
+
 const string strMessageMagic = "Pinkcoin Signed Message:\n";
 
 // Settings
@@ -85,6 +89,8 @@ int64_t nCombineThreshold = 1000;
 int64_t nSplitThreshold = 2000;
 int64_t nMinimumInputValue = 0;
 int64_t nMinimumStakeValue = 0; // Don't stake old 0 reward blocks.
+
+bool fGlobalNotifications = true;
 
 extern enum Checkpoints::CPMode CheckpointsMode;
 
@@ -105,6 +111,22 @@ void RegisterWallet(CWallet* pwalletIn)
 }
 
 void UnregisterWallet(CWallet* pwalletIn)
+{
+    {
+        LOCK(cs_setpwalletRegistered);
+        setpwalletRegistered.erase(pwalletIn);
+    }
+}
+
+void RegisterWallet(CVote* pwalletIn)
+{
+    {
+        LOCK(cs_setpwalletRegistered);
+        setpwalletRegistered.insert(pwalletIn);
+    }
+}
+
+void UnregisterWallet(CVote* pwalletIn)
 {
     {
         LOCK(cs_setpwalletRegistered);
@@ -148,6 +170,10 @@ void SyncWithWallets(const CTransaction& tx, const CBlock* pblock, bool fUpdate,
             BOOST_FOREACH(CWallet* pwallet, setpwalletRegistered)
                 if (pwallet->IsFromMe(tx))
                     pwallet->DisableTransaction(tx);
+        }
+        if (tx.vout[0].scriptPubKey.IsVotePoll())
+        {
+            erasePoll(tx.GetHash());
         }
         return;
     }
@@ -307,7 +333,6 @@ bool CTransaction::ReadFromDisk(COutPoint prevout)
 
 bool CTransaction::IsStandard() const
 {
-
     // Accept CURRENT_VERSION +1 Transactions.
     if (nVersion > CTransaction::CURRENT_VERSION && nTime < 1538265600)
         return false;
@@ -387,6 +412,10 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
         int nArgsExpected = ScriptSigArgsExpected(whichType, vSolutions);
         if (nArgsExpected < 0)
             return false;
+
+
+        if (whichType == TX_VOTEPOLL || whichType == TX_VOTEBALLOTS)
+            return true;
 
         // Transactions with extra stuff in their scriptSigs are
         // non-standard. Note that this EvalScript() call will
@@ -590,6 +619,13 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx,
     // ppcoin: coinstake is also only valid in a block, not as a loose transaction
     if (tx.IsCoinStake())
         return tx.DoS(100, error("CTxMemPool::accept() : coinstake as individual tx"));
+
+    if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
+    {
+        vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
+        if (!processRawPoll(rawPoll, 0, pindexBest->nHeight, true))
+            return tx.DoS(10, error("CTxMemPool::accept() : Poll not accepted."));
+    }
 
     // Rather not work on nonstandard transactions (unless -testnet)
     if (!fTestNet && !tx.IsStandard())
@@ -984,7 +1020,7 @@ uint256 WantedByOrphan(const CBlock* pblockOrphan)
 }
 
 // miner's coin base reward
-int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
+int64_t GetProofOfWorkReward(int nHeight, int64_t nFees, int64_t nFeeFromPool)
 {
     int64_t nSubsidy = 0;
     int64_t nHalving = 0;
@@ -1001,11 +1037,11 @@ int64_t GetProofOfWorkReward(int nHeight, int64_t nFees)
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfWorkReward() : create=%s nSubsidy=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nSubsidy);
 
-    return nSubsidy + nFees;
+    return nSubsidy + nFees + nFeeFromPool;
 }
 
 // miner's coin stake reward based on coin age spent (coin-days)
-int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int nHeight, unsigned int nTime)
+int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int64_t nFeeFromPool, int nHeight, unsigned int nTime)
 {
     int64_t nSubsidy = 0;
     int64_t nHalving = 0;
@@ -1025,7 +1061,7 @@ int64_t GetProofOfStakeReward(int64_t nCoinAge, int64_t nFees, int nHeight, unsi
     if (fDebug && GetBoolArg("-printcreation"))
         printf("GetProofOfStakeReward(): create=%s nCoinAge=%" PRId64 "\n", FormatMoney(nSubsidy).c_str(), nCoinAge);
 
-    return nSubsidy + nFees;
+    return nSubsidy + nFees + nFeeFromPool;
 }
 
 static const int64_t nTargetTimespan = 60 * 60;  // 60 mins
@@ -1616,6 +1652,8 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     map<uint256, CTxIndex> mapQueuedChanges;
     int64_t nFees = 0;
+    int64_t nPoolFees = 0;
+    int64_t nFeeFromPool = 0;
     int64_t nValueIn = 0;
     int64_t nValueOut = 0;
     int64_t nStakeReward = 0;
@@ -1652,8 +1690,12 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             nTxPos += ::GetSerializeSize(tx, SER_DISK, CLIENT_VERSION);
 
         MapPrevTx mapInputs;
+
         if (tx.IsCoinBase())
+        {
+            nFeeFromPool = pindex->pprev->nFeePool / FEEPOOL_RELEASE_RATE;
             nValueOut += tx.GetValueOut();
+        }
         else
         {
             bool fInvalid;
@@ -1671,9 +1713,25 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             int64_t nTxValueOut = tx.GetValueOut();
             nValueIn += nTxValueIn;
             nValueOut += nTxValueOut;
+
+            if (tx.vout[0].scriptPubKey.IsVotePoll())
+            {
+
+                if(pindex->pprev->nTime < VOTE_START_DATE && !fTestNet)
+                    return DoS(100, error("ConnectBlock() : Voting system not yet available on MainNet."));
+
+                if((nTxValueIn - nTxValueOut) < VOTE_FEE && !fTestNet)
+                    return DoS(100, error("ConnectBlock() : Voting fee not paid."));
+
+                nTxValueIn -= VOTE_FEE;
+                nValueIn -= VOTE_FEE;
+                nPoolFees += VOTE_FEE;
+                nFeeFromPool += VOTE_FEE / FEEPOOL_RELEASE_RATE;
+            }
+
             if (!tx.IsCoinStake())
                 nFees += nTxValueIn - nTxValueOut;
-            if (tx.IsCoinStake())
+            if (tx.IsCoinStake())  // We already checked that it's not a VotePoll in CheckBlock() so this is ok.
                 nStakeReward = nTxValueOut - nTxValueIn;
 
             if (!tx.ConnectInputs(txdb, mapInputs, mapQueuedChanges, posThisTx, pindex, true, false))
@@ -1685,9 +1743,9 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     if (IsProofOfWork())
     {
-        int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees);
+        int64_t nReward = GetProofOfWorkReward(pindex->nHeight, nFees, nFeeFromPool);
         // Check coinbase reward
-        if (vtx[0].GetValueOut() > nReward)
+        if (vtx[0].GetValueOut() > nReward && !( fTestNet && pindex->nHeight < 189840 ) ) // some messed up blocks got included in testnet before this while testing feepool.
             return DoS(50, error("ConnectBlock() : coinbase reward exceeded (actual=%" PRId64 " vs calculated=%" PRId64 ")",
                    vtx[0].GetValueOut(),
                    nReward));
@@ -1699,15 +1757,24 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         if (!vtx[1].GetCoinAge(txdb, nCoinAge))
             return error("ConnectBlock() : %s unable to get coin age for coinstake", vtx[1].GetHash().ToString().substr(0,10).c_str());
 
-        int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees, pindex->nHeight, pindex->nTime);
+        int64_t nCalculatedStakeReward = GetProofOfStakeReward(nCoinAge, nFees, nFeeFromPool, pindex->nHeight, pindex->nTime);
 
-        if (nStakeReward > nCalculatedStakeReward)
+        if (nStakeReward > nCalculatedStakeReward && !( fTestNet && pindex->nHeight < 189840 ))
             return DoS(100, error("ConnectBlock() : coinstake pays too much(actual=%" PRId64 " vs calculated=%" PRId64 ")", nStakeReward, nCalculatedStakeReward));
     }
 
-    // ppcoin: track money supply and mint amount info
-    pindex->nMint = nValueOut - nValueIn + nFees;
-    pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn;
+    // ppcoin: track money supply, mint amount, and feepool info
+    pindex->nMint = nValueOut - nValueIn + nFees + nFeeFromPool;
+    pindex->nFeePool = (pindex->pprev? pindex->pprev->nFeePool : 0) + nPoolFees - nFeeFromPool;
+
+    // We subtract nFeeFromPool here because it came from the established fee pool and is not new pink.
+    // This is not the case with regular nFees because they originate from other nValueIn's included in this block
+    // and therefore balance out this equation on their own.
+    pindex->nMoneySupply = (pindex->pprev? pindex->pprev->nMoneySupply : 0) + nValueOut - nValueIn - nFeeFromPool;
+
+    if(pindex->pprev->nTime >= VOTE_START_DATE || (fTestNet && pindex->pprev->nTime >= 1534208400))
+        pindex->nFlags |= CBlockIndex::BLOCK_FEE_POOL;
+
     if (!txdb.WriteBlockIndex(CDiskBlockIndex(pindex)))
         return error("Connect() : WriteBlockIndex for pindex failed");
 
@@ -1733,7 +1800,14 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
 
     // Watch for transactions paying to me
     BOOST_FOREACH(CTransaction& tx, vtx)
+    {
         SyncWithWallets(tx, this, true);
+        if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
+        {
+            vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
+            processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false, true);
+        }
+    }
 
     return true;
 }
@@ -2144,7 +2218,6 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (nTime > 1513942698) // Block 315065
         futureLimit = futureLimit + (9 * 60);
 
-
     // Check timestamp
     if (futureLimit > FutureDrift(GetAdjustedTime()))
     {
@@ -2470,7 +2543,7 @@ bool ProcessBlock(CNode* pfrom, CBlock* pblock)
 }
 
 // novacoin: attempt to generate suitable proof-of-stake
-bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
+bool CBlock::SignBlock(CWallet& wallet, int64_t nFees, int64_t nPoolFees)
 {
     // if we are trying to sign
     //    something except proof-of-stake block template
@@ -2490,7 +2563,7 @@ bool CBlock::SignBlock(CWallet& wallet, int64_t nFees)
 
     if (nSearchTime > nLastCoinStakeSearchTime)
     {
-        if (wallet.CreateCoinStake(wallet, nBits, nSearchTime-nLastCoinStakeSearchTime, nFees, txCoinStake, key))
+        if (wallet.CreateCoinStake(wallet, nBits, nSearchTime-nLastCoinStakeSearchTime, nFees, nPoolFees, txCoinStake, key))
         {
             if (txCoinStake.nTime >= max(pindexBest->GetPastTimeLimit()+1, PastDrift(pindexBest->GetBlockTime())))
             {
@@ -2676,15 +2749,18 @@ bool LoadBlockIndex(bool fAllowNew)
                    }
                }
         }
-        block.print();
-        printf("block.GetHash() == %s\n", block.GetHash().ToString().c_str());
-        printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
-        printf("block.nTime = %u \n", block.nTime);
-        printf("block.nNonce = %u \n", block.nNonce);
-
+        if (GetBoolArg("-printblocks"))
+        {
+            block.print();
+            printf("block.GetHash() == %s\n", block.GetHash().ToString().c_str());
+            printf("block.hashMerkleRoot == %s\n", block.hashMerkleRoot.ToString().c_str());
+            printf("block.nTime = %u \n", block.nTime);
+            printf("block.nNonce = %u \n", block.nNonce);
+        }
         //// debug print
         assert(block.hashMerkleRoot == uint256("0x96f872319c330aadbdc18543e27a305c6ab046801cfc81e20a004f3b26fad891"));
-        block.print();
+        if (GetBoolArg("-printblocks"))
+            block.print();
         assert(block.GetHash() == (!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));
         assert(block.CheckBlock());
 
@@ -3304,12 +3380,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         if (pindex)
             pindex = pindex->pnext;
         int nLimit = 500;
-        printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str(), nLimit);
+        if (GetBoolArg("-printgetblocks"))
+            printf("getblocks %d to %s limit %d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString().substr(0,20).c_str(), nLimit);
         for (; pindex; pindex = pindex->pnext)
         {
             if (pindex->GetBlockHash() == hashStop)
             {
-                printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
+                if (GetBoolArg("-printblocks"))
+                    printf("  getblocks stopping at %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
                 // ppcoin: tell downloading node about the latest block if it's
 
                 if (hashStop != hashBestChain && pindex->GetBlockTime() + nStakeMinAge > pindexBest->GetBlockTime())
@@ -3321,7 +3399,8 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             {
                 // When this block is requested, we'll send an inv that'll make them
                 // getblocks the next batch of inventory.
-                printf("  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
+                if (GetBoolArg("-printblocks"))
+                    printf("  getblocks stopping at limit %d %s\n", pindex->nHeight, pindex->GetBlockHash().ToString().substr(0,20).c_str());
                 pfrom->hashContinue = pindex->GetBlockHash();
                 break;
             }

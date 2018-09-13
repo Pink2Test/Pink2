@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
     // as it is used to locate QSettings)
     app.setOrganizationName("Pinkcoin");
     //XXX app.setOrganizationDomain("");
-    if(GetBoolArg("-testnet")) // Separate UI settings for testnet
+    if(GetBoolArg("-testnet", forceTestnet)) // Separate UI settings for testnet
         app.setApplicationName("Pinkcoin-Qt-testnet");
     else
         app.setApplicationName("Pinkcoin-Qt");
@@ -212,7 +212,7 @@ int main(int argc, char *argv[])
 
 #ifdef Q_OS_MAC
     // on mac, also change the icon now because it would look strange to have a testnet splash (green) and a std app icon (orange)
-    if(GetBoolArg("-testnet")) {
+    if(GetBoolArg("-testnet", forceTestnet)) {
         MacDockIconHandler::instance()->setIcon(QIcon(":icons/bitcoin_testnet"));
     }
 #endif
