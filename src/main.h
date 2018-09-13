@@ -25,22 +25,27 @@ class CAddress;
 class CInv;
 class CNode;
 
+// Max size of a ballot blockstack + a few safety bytes.
+// (A 100 Ballot blockstack is 450 bytes, +1 for the count byte and +1 for OP_VOTE)
+static const unsigned int MAX_VOTE_SIZE = 455;
+
 static const unsigned int MAX_BLOCK_SIZE = 1000000;
 static const unsigned int MAX_BLOCK_SIZE_GEN = MAX_BLOCK_SIZE/2;
 static const unsigned int MAX_BLOCK_SIGOPS = MAX_BLOCK_SIZE/50;
-static const unsigned int MAX_VOTE_SIZE = 466; // Max size of uncompressed poll.
-static const unsigned int FEEPOOL_RELEASE_RATE = 100000;
+static const unsigned int FEEPOOL_RELEASE_RATE = 100000; // The feepool divided by this is released every block.
 static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MIN_PEERS = 7; // Require a good connection to the network for staking.
 static const unsigned int nHalvingPoint = 2;
-static const time_t VOTE_START_DATE = 1539475200; // 10/14/2018 @ 12:00am (UTC)
-static const time_t FPOS2_START_DATE = 1538265600; // 09/30/2018 @ 12:00am (UTC)
 static const int64_t VOTE_FEE = 100 * COIN;
 static const int64_t MIN_TX_FEE = 10000;
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const int64_t MAX_MONEY = 500000000 * COIN;
 static const int64_t YEARLY_BLOCKCOUNT = 423400;
+
+// Mainnet feature forks
+static const time_t VOTE_START_DATE = 1540857600; // 10/30/2018 @ 12:00am (UTC)
+static const time_t FPOS2_START_DATE = 1538265600; // 09/30/2018 @ 12:00am (UTC)
 
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
@@ -56,8 +61,6 @@ inline int64_t FutureDrift(int64_t nTime) { return nTime + 10 * 60; } // up to 1
 
 extern bool fGlobalNotifications;
 extern CScript COINBASE_FLAGS;
-extern CScript VOTE_CASTING;
-extern CScript VOTE_BALLOT;
 extern CCriticalSection cs_main;
 extern std::map<uint256, CBlockIndex*> mapBlockIndex;
 extern std::set<std::pair<COutPoint, unsigned int> > setStakeSeen;

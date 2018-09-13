@@ -2726,6 +2726,37 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         txNew.vout[1].nValue = nCredit;
     }
 
+    if (vIndex->ballotStack.size() > 0)
+    {
+        BLOCK_PROOF_TYPE t = IsFlashStake(txNew.nTime) ? BLOCK_PROOF_FPOS : BLOCK_PROOF_POS;
+        vector<vector<unsigned char>> ballotBlock;
+        BallotStack checkStack;
+        ballotBlock.resize(1);
+        size_t szVout = txNew.vout.size();
+
+        selectBallots(ballotBlock[0], t);
+
+        bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0);
+        uint8_t i = 0;
+
+        while (okBallots && i < 3 && ballotBlock[i].size() > 0 && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
+        {
+            i++;
+            ballotBlock.resize(i+1);
+            selectBallots(ballotBlock[i], t, 100 * i);
+            okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0);
+        }
+
+        if (!okBallots)
+            ballotBlock.erase(ballotBlock.begin()+i);
+
+
+        for (uint8_t i = 0; i < ballotBlock.size(); i++)
+        {
+            txNew.vout.resize(szVout + i+1);
+            txNew.vout[szVout + i].scriptPubKey = CScript() << OP_VOTE <= ballotBlock[i];
+        }
+    }
 
     // Sign
     int nIn = 0;
