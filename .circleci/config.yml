@@ -6,7 +6,7 @@ jobs:
     docker:
       - image: ubuntu:xenial
         environment:
-          FROM_BUILD: "JRedinger"
+          FROM_BUILD: "Pink2Test"
           BDB_PREFIX: "/Pink2/src/db4"
           QRENCODE_PREFIX: "/Pink2/src/qrencode"
           OPENSSL_PREFIX: "/Pink2/src/openssl"
