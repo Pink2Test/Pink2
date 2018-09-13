@@ -2644,9 +2644,9 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 				CTxDB txdb("r");
 				if (txNew.GetCoinAge(txdb, nCoinAge))
 				{
-                    int64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, nPoolFees, pindexBest->nHeight + 1, txNew.nTime);
-                    if (nTotalSize > nSplitThreshold * COIN)
-						txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
+             int64_t nTotalSize = pcoin.first->vout[pcoin.second].nValue + GetProofOfStakeReward(nCoinAge, 0, nPoolFees, pindexBest->nHeight + 1, txNew.nTime);
+             if (nTotalSize > nSplitThreshold * COIN)
+						     txNew.vout.push_back(CTxOut(0, scriptPubKeyOut)); //split stake
 				}
 
 				

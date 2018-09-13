@@ -553,7 +553,6 @@ bool AppInit2(boost::thread_group& threadGroup)
     if (strVoteDBFileName != boost::filesystem::basename(strVoteDBFileName) + boost::filesystem::extension(strVoteDBFileName))
         return InitError(strprintf(_("DB %s resides outside data directory %s."), strVoteDBFileName.c_str(), strDataDir.c_str()));
 
-
     // Make sure only a single Bitcoin process is using the data directory.
     boost::filesystem::path pathLockFile = GetDataDir() / ".lock";
     FILE* file = fopen(pathLockFile.string().c_str(), "a"); // empty lock file; created if it doesn't exist.
