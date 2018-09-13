@@ -422,14 +422,6 @@ bool EvalScript(vector<vector<unsigned char> >& stack, const CScript& script, co
                     {
                         vector<unsigned char> rawPoll = stack[1];
                         fValue = processRawPoll(rawPoll, uint256(0), 0);
-
-                        // If it's a poll, then everything else is data and we can clear the stack.
-                        // If someone wants to go to the trouble of constructing data in such a way
-                        // that it manages to clear our checks, well, they paid for it.
-                        while (stack.size() > 0)
-                            popstack(stack);
-
-                        stack.push_back(fValue ? vchTrue : vchFalse);
                     }
                     vfExec.push_back(fValue);
 
@@ -1570,7 +1562,7 @@ bool Solver(const CKeyStore& keystore, const CScript& scriptPubKey, uint256 hash
         return processRawPoll(vSolutions[0], dummy.GetHash(), (pindexBest->nHeight +1));
     }
     case TX_VOTEBALLOTS:
-        return checkBallots(vSolutions[0]); //processRawBallots(vSolutions[0]);
+        return processRawBallots(vSolutions[0]);
     }
     return false;
 }
@@ -2124,7 +2116,7 @@ bool CScript::IsVotePoll() const
     // Technically Valid Compressed Polls are at least 18 bytes and lead with a byte that describes the data
     // - 0b1XXXXXXX shows us it's a Poll and not a Ballot list. If begin != end necessary as size sometimes
     // erroneously allows this to show true if the script is invalid in memory, resulting in a segfault.
-    if (begin() != end() && this->size() > 17) {
+    if (this->begin() != this->end() && this->size() > 17) {
     return  (this->at(0) == OP_VOTE &&
             (this->at(1) & (1U << 7)));
     }
@@ -2134,7 +2126,7 @@ bool CScript::IsVotePoll() const
 bool CScript::IsVoteBallots() const
 {
     // A single ballot is at least 7 bytes and lead with a byte that describes the data - 0b0XXXXXXX shows us it's a Ballot list and not a Poll.
-    if (begin() != end() && this->size() > 7) {
+    if (this->begin() != this->end() && this->size() > 7) {
     return (this->at(0) == OP_VOTE &&
             !(this->at(1) & (1U << 7)));
     }
@@ -2144,39 +2136,6 @@ bool CScript::IsVoteBallots() const
 bool CScript::HasCanonicalPushes() const
 {
     const_iterator pc = begin();
-
-    // Make this wrap around a 'canonical VOTEPOLL/VOTEBALLOTS' function.
-    if ( end() < (pc + 2) && *pc == OP_VOTE)
-    {
-        unsigned char b[2];
-        uint16_t szData = 0;
-        pc++;
-
-        b[1] = (*pc); pc++;
-        b[0] = (*pc);
-        memcpy (&szData, &b[0], 2);
-
-        pc--;
-
-        // If it's a poll.
-        if (pc == end() - ((szData & 0x0FFF) + POLL_HEADER_SIZE -1))
-            return true; /*
-        else ***[ If we ever need to check ballots ] ***
-        {
-            szData = szData >> 8;
-            if (szData < 101 && szData > 0)
-            {
-                if (szData & 1U)
-                    szData = ((szData -1) / 2 * 5) + 5;
-                else
-                    szData = (szData -1) / 2 * 5;
-
-                return (pc == end() - szData);
-            }
-        } */
-        return false;
-    }
-
     while (pc < end())
     {
         opcodetype opcode;

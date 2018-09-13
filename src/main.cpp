@@ -352,28 +352,10 @@ bool CTransaction::IsStandard() const
         if (!txin.scriptSig.HasCanonicalPushes()) {
             return false;
         }
-        if (txin.scriptSig.size() > 0 && (txin.scriptSig.IsVotePoll() || txin.scriptSig.IsVoteBallots()))
-            return false;
     }
 
     unsigned int nDataOut = 0;
     unsigned int nTxnOut = 0;
-
-    for (uint8_t i = 0; i < vout.size(); i++)
-    {
-        if (vout[i].scriptPubKey.IsVotePoll())
-        {
-            if (i == 0)
-            {
-                // if IsStandard() ever gets called from anywhere other than accept()
-                // write code here to make sure the poll is valid. accept() already
-                // checks for us so we don't have to do that again here.
-                return true;
-            }
-            else
-                return false; // VotePoll's are only valid in position 0.
-        }
-    }
     
     txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, vout) {
@@ -432,9 +414,8 @@ bool CTransaction::AreInputsStandard(const MapPrevTx& mapInputs) const
             return false;
 
 
-        // Polls & ballots cannot be inputs.
         if (whichType == TX_VOTEPOLL || whichType == TX_VOTEBALLOTS)
-            return false;
+            return true;
 
         // Transactions with extra stuff in their scriptSigs are
         // non-standard. Note that this EvalScript() call will
@@ -1638,82 +1619,8 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     }
 
     // ppcoin: clean up wallet after disconnecting coinstake
-    BOOST_FOREACH(CTransaction& tx, vtx) {
+    BOOST_FOREACH(CTransaction& tx, vtx)
         SyncWithWallets(tx, this, false, false);
-
-        // Process Ballots (we can wrap this in a function later.)
-        if (IsProofOfWork())
-        {
-            BallotStack ballots;
-            ballots.clear();
-            bool okBallots = true;
-            for (uint16_t i = 1; i < vtx[0].vout.size(); i++)
-            {
-
-
-                if (vtx[0].vout[i].scriptPubKey.IsVoteBallots())
-                {
-                    vector<unsigned char> rawBallots(&*vtx[0].vout[i].scriptPubKey.begin()+1, &*vtx[0].vout[i].scriptPubKey.end());
-                    if (!getBallots(rawBallots, ballots))
-                    {
-                        okBallots = false;
-                        printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                    }
-                }
-            }
-            if (okBallots && ballots.size() > 0)
-            {
-                tallyBallots(ballots, BLOCK_PROOF_POW, true);
-            }
-        } else {
-            if (IsFlashStake(pindex->nTime))
-            {
-                BallotStack ballots;
-                ballots.clear();
-                bool okBallots = true;
-                for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
-                {
-
-
-                    if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
-                    {
-                        vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
-                        if (!getBallots(rawBallots, ballots))
-                        {
-                            okBallots = false;
-                            printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                        }
-                    }
-                }
-                if (okBallots && ballots.size() > 0)
-                {
-                    tallyBallots(ballots, BLOCK_PROOF_FPOS, true);
-                }
-            } else {
-                BallotStack ballots;
-                ballots.clear();
-                bool okBallots = true;
-                for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
-                {
-
-
-                    if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
-                    {
-                        vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
-                        if (!getBallots(rawBallots, ballots))
-                        {
-                            okBallots = false;
-                            printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                        }
-                    }
-                }
-                if (okBallots && ballots.size() > 0)
-                {
-                    tallyBallots(ballots, BLOCK_PROOF_POS, true);
-                }
-            }
-        }
-    }
 
     return true;
 }
@@ -1891,7 +1798,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
             return error("ConnectBlock() : WriteBlockIndex failed");
     }
 
-
     // Watch for transactions paying to me
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
@@ -1900,79 +1806,6 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
         {
             vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
             processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false, true);
-        }
-    }
-
-    // Process Ballots
-    if (IsProofOfWork())
-    {
-        BallotStack ballots;
-        ballots.clear();
-        bool okBallots = true;
-        for (uint16_t i = 1; i < vtx[0].vout.size(); i++)
-        {
-
-
-            if (vtx[0].vout[i].scriptPubKey.IsVoteBallots())
-            {
-                vector<unsigned char> rawBallots(&*vtx[0].vout[i].scriptPubKey.begin()+1, &*vtx[0].vout[i].scriptPubKey.end());
-                if (!getBallots(rawBallots, ballots))
-                {
-                    okBallots = false;
-                    printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                }
-            }
-        }
-        if (okBallots && ballots.size() > 0)
-        {
-            tallyBallots(ballots, BLOCK_PROOF_POW);
-        }
-    } else {
-        if (IsFlashStake(pindex->nTime))
-        {
-            BallotStack ballots;
-            ballots.clear();
-            bool okBallots = true;
-            for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
-            {
-
-
-                if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
-                {
-                    vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
-                    if (!getBallots(rawBallots, ballots))
-                    {
-                        okBallots = false;
-                        printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                    }
-                }
-            }
-            if (okBallots && ballots.size() > 0)
-            {
-                tallyBallots(ballots, BLOCK_PROOF_FPOS);
-            }
-        } else {
-            BallotStack ballots;
-            ballots.clear();
-            bool okBallots = true;
-            for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
-            {
-
-
-                if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
-                {
-                    vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
-                    if (!getBallots(rawBallots, ballots))
-                    {
-                        okBallots = false;
-                        printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                    }
-                }
-            }
-            if (okBallots && ballots.size() > 0)
-            {
-                tallyBallots(ballots, BLOCK_PROOF_POS);
-            }
         }
     }
 

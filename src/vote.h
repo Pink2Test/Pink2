@@ -223,7 +223,7 @@ CPollTime GetPollTime2(const int64_t& uTime, const int& blockHeight = pindexBest
 bool GetPollHeight(CPollID& pollID, int& pollHeight);
 bool pollCompare(CVotePoll* a, CVotePoll* b);
 bool processRawPoll(const vector<unsigned char> &rawPoll, const uint256 &hash, const int &nHeight, const bool &checkOnly = true, const bool &fromBlockchain = false);
-bool processRawBallots(const vector<unsigned char>& rawBallots, const BLOCK_PROOF_TYPE &t, const bool &undo = false, const bool &checkOnly = false);
+bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly = true);
 bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll *inPoll);
 bool isLocal();
 
@@ -232,10 +232,9 @@ void erasePoll(const CPollID& ID);
 
 uint8_t selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t);
 bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots);
-bool checkBallots(const vector<unsigned char> &vchBallots);
 bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, vector<BallotStack::const_iterator> &badIt);
-void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool &undo = false);
-bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins, const bool &undo = false);
+void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool undo = false);
+bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins, const bool &undo);
 
 
 

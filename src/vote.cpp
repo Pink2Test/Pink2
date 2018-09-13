@@ -817,20 +817,9 @@ bool getRawPoll(vector<unsigned char>& rawPoll, const CVotePoll* inPoll)
     }
 }
 
-// I don't think we need this function. Leaving for the moment.
-bool processRawBallots(const vector<unsigned char>& rawBallots, const BLOCK_PROOF_TYPE &t, const bool &undo, const bool &checkOnly)
+
+bool processRawBallots(const vector<unsigned char>& rawBallots, const bool &checkOnly)
 {
-    if (checkOnly)
-        return true; // todo, should we ever need this.
-
-    BallotStack ballots;
-    ballots.clear();
-    if (getBallots(rawBallots, ballots))
-    {
-        tallyBallots(ballots, t, undo);
-        return true;
-    }
-
     return false;
 }
 
@@ -900,7 +889,7 @@ bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, 
         CPollIDDest vchID(bIt->first);
         const unsigned char &vchVote = bIt->second.OpSelection;
 
-        if (vchVote != 0 && p->find(vchID.ID) != p->end() && (p->at(vchID.ID).Flags & mFlags.at(t)) &&
+        if (p->find(vchID.ID) != p->end() && (p->at(vchID.ID).Flags & mFlags.at(t)) &&
                 count < 100 && p->at(vchID.ID).isActive())
         {
             IDPair.insert(IDPair.end(), vchID.begin(), vchID.end());
@@ -928,20 +917,6 @@ bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, 
     return (count > 0);
 }
 
-bool checkBallots(const vector<unsigned char> &vchBallots)
-{
-    int8_t szData = vchBallots[0];
-    if (szData < 101 && szData > 0)
-    {
-        if (szData & 1U)
-            szData = ((szData -1) / 2 * 5) + 5;
-        else
-            szData = (szData -1) / 2 * 5;
-
-        return (vchBallots.size() == szData + 1U);
-    }
-    return false;
-}
 bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallots)
 {
     CVoteBallot ballot;
@@ -949,7 +924,6 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
     uint8_t count = 0;
     uint8_t checkCount = 0;
     vector<unsigned char> workBallots(vchBallots.begin(), vchBallots.end());
-
     if (vchBallots.size() > 5)
     {
         checkCount = *workBallots.begin();
@@ -966,33 +940,24 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
             holder = *(workBallots.begin(), workBallots.begin()+4);
             ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
             ballot.PollID = holder.ID;
-            if (stackBallots.find(ballot.PollID) == stackBallots.end())
-            {
-                stackBallots.insert(make_pair(ballot.PollID, ballot));
-            }
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
 
             holder = *(workBallots.begin()+4, workBallots.begin()+8);
             ballot.OpSelection = ((*workBallots.begin()+9) >> 4);
             ballot.PollID = holder.ID;
-            if (stackBallots.find(ballot.PollID) == stackBallots.end())
-            {
-                stackBallots.insert(make_pair(ballot.PollID, ballot));
-            }
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
 
-            count += 2;
             workBallots.erase(workBallots.begin(), workBallots.begin()+9);
+            count += 2;
         } else if (workBallots.size() == 5)
         {
             holder = *(workBallots.begin(), workBallots.begin()+4);
             ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
             ballot.PollID = holder.ID;
-            if (stackBallots.find(ballot.PollID) == stackBallots.end())
-            {
-                stackBallots.insert(make_pair(ballot.PollID, ballot));
-            }
+            stackBallots.insert(make_pair(ballot.PollID, ballot));
 
-            count++;
             workBallots.erase(workBallots.begin(), workBallots.begin()+5);
+            count++;
         } else if (workBallots.size() == 0) {
             if (count == checkCount)
                 return true;
@@ -1017,7 +982,7 @@ bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, v
     {
         PollStack::iterator pIt = vIndex->pollCache.find(bIt->first);
         if (pIt == vIndex->pollCache.end() || !(pIt->second.Flags & mFlags.at(t)) ||
-                 bIt->second.OpSelection == 0 || bIt->second.OpSelection > pIt->second.nTally.size())
+                ( bIt->second.OpSelection != 0 && bIt->second.OpSelection > pIt->second.nTally.size()))
         {
             badIt.push_back(bIt);
             allGood = false;
@@ -1026,7 +991,7 @@ bool verifyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, v
     return allGood;
 
 }
-void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool &undo)
+void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, const bool undo)
 {
     vector<BallotStack::const_iterator> badIt;
     BallotStack workStack = stackBallots;
@@ -1042,7 +1007,7 @@ void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, co
         for (BallotStack::const_iterator bIt = stackBallots.begin(); bIt != stackBallots.end(); bIt++)
         {
             const CVoteBallot &ballotVote = bIt->second;
-            vector<CVoteTally>::iterator onPoll = (vIndex->pollCache.at(bIt->first).nTally.begin()+(ballotVote.OpSelection-1));
+            vector<CVoteTally>::iterator onPoll = (vIndex->pollCache.at(bIt->first).nTally.begin()+ballotVote.OpSelection);
 
             if (t == BLOCK_PROOF_POS)
             {
@@ -1062,9 +1027,9 @@ void tallyBallots(const BallotStack &stackBallots, const BLOCK_PROOF_TYPE &t, co
 bool tallyTxBallot(const CVoteBallot &txBallot, const uint64_t &nCoins, const bool &undo)
 {
     PollStack::iterator pIt = vIndex->pollCache.find(txBallot.PollID);
-    if (pIt != vIndex->pollCache.end() && txBallot.OpSelection <= pIt->second.nTally.size() && txBallot.OpSelection > 0)
+    if (pIt != vIndex->pollCache.end() && txBallot.OpSelection <= pIt->second.nTally.size())
     {
-        CVoteTally &tallyTx = *(pIt->second.nTally.begin()+txBallot.OpSelection -1);
+        CVoteTally &tallyTx = *(pIt->second.nTally.begin()+txBallot.OpSelection);
         tallyTx.D4L = undo ? tallyTx.D4L -(nCoins/COIN) : tallyTx.D4L + (nCoins/COIN);
 
         LOCK(vIndex->cs_wallet);

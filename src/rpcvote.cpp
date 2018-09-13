@@ -277,17 +277,13 @@ void GetActive(const Array& params, Object& retObj, string& helpText)
 void MakeSelection(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    string checkSize = "";
-    uint8_t nSelect = 0;
-    if (params.size() > 1) {
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-        nSelect = stoi(param1);
-        checkSize = to_string((int)nSelect);
-        // checkSize = checkSize.substr(checkSize.size() -1, 1); // needed because to_string sometimes throws in a leading null on uint8_t (aka unsigned char).
-    }
+    uint8_t nSelect = stoul(param1);
+    string checkSize = to_string(nSelect);
 
-    if (param1 == "" || param1 != checkSize || nSelect > vIndex->current.poll->Option.size() || params.size() > 2)
+    if (param1 != checkSize || nSelect > vIndex->current.poll->Option.size() || params.size() > 2)
         helpText = ("vote makeselection <selection number>\n"
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
@@ -300,7 +296,7 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
     if (nSelect < (vIndex->current.poll->OpCount +1) && vIndex->current.ballot->PollID == vIndex->current.poll->ID)
     {
         vIndex->current.ballot->OpSelection = nSelect;
-        string opSelection = "Option #" + to_string((int)nSelect);
+        string opSelection = "Option #" + to_string(nSelect);
         retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
         if (vIndex->current.ballot->OpSelection > 0)
             retObj.push_back(Pair(opSelection, vIndex->current.poll->Option[vIndex->current.ballot->OpSelection - 1]));
@@ -724,9 +720,9 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
 
     vIndex->current.poll->Option.erase(it);
     vIndex->current.poll->OpCount = (COptionID)vIndex->current.poll->Option.size();
-    if (vIndex->current.ballot->OpSelection > ((uint8_t)stoi(param1)))
+    if (vIndex->current.ballot->OpSelection > (stoul(param1)))
         vIndex->current.ballot->OpSelection--;
-    else if (vIndex->current.ballot->OpSelection == ((uint8_t)stoi(param1)))
+    else if (vIndex->current.ballot->OpSelection == (stoul(param1)))
         vIndex->current.ballot->OpSelection = 0;
 
     vIndex->current.poll->nTally.erase(tit);
@@ -1041,10 +1037,7 @@ void RemovePoll(const Array& params, Object& retObj, string& helpText)
         success = voteDB.EraseVote(it->second);
 
         if (vIndex->ballotStack.find(pollID) != vIndex->ballotStack.end())
-        {
             voteDB.EraseBallot(vIndex->ballotStack.at(pollID));
-            vIndex->ballotStack.erase(pollID);
-        }
 
         if (vIndex->current.poll->ID == it->first)
             vIndex->current.setActive(vIndex->current.pIt, vIndex->current.bIt, ActivePoll::SET_CLEAR);
