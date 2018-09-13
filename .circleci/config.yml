@@ -6,7 +6,7 @@ jobs:
     docker:
       - image: ubuntu:trusty
         environment:
-          FROM_BUILD: "Pink2Test"
+          FROM_BUILD: "JRedinger"
     steps:
       - checkout
       - run:
