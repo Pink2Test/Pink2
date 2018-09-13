@@ -164,7 +164,7 @@ void RandAddSeedPerfmon()
     {
         RAND_add(pdata, nSize, nSize/100.0);
         OPENSSL_cleanse(pdata, nSize);
-        printf("RandAddSeed() %" PRIu32 " bytes\n", nSize);
+        printf("RandAddSeed() %" PRIu64 " bytes\n", nSize);
     }
 #endif
 }
