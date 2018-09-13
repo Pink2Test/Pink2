@@ -23,6 +23,8 @@ qrc_*.cpp
 #mac specific
 .DS_Store
 build
+#circleci stuff so we can switch between builds.
+config.yml
 
 !src/leveldb/Makefile
 *.autosave
