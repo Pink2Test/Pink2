@@ -37,13 +37,15 @@ static const unsigned int MAX_ORPHAN_TRANSACTIONS = MAX_BLOCK_SIZE/100;
 static const unsigned int MAX_INV_SZ = 50000;
 static const unsigned int MIN_PEERS = 7; // Require a good connection to the network for staking.
 static const unsigned int nHalvingPoint = 2;
-static const time_t VOTE_START_DATE = 1539475200; // 10/14/2018 @ 12:00am (UTC)
-static const time_t FPOS2_START_DATE = 1538265600; // 09/30/2018 @ 12:00am (UTC)
 static const int64_t VOTE_FEE = 100 * COIN;
 static const int64_t MIN_TX_FEE = 10000;
 static const int64_t MIN_RELAY_TX_FEE = MIN_TX_FEE;
 static const int64_t MAX_MONEY = 500000000 * COIN;
 static const int64_t YEARLY_BLOCKCOUNT = 423400;
+
+// Mainnet feature forks
+static const time_t VOTE_START_DATE = 1540857600; // 10/30/2018 @ 12:00am (UTC)
+static const time_t FPOS2_START_DATE = 1538265600; // 09/30/2018 @ 12:00am (UTC)
 
 inline bool MoneyRange(int64_t nValue) { return (nValue >= 0 && nValue <= MAX_MONEY); }
 // Threshold for nLockTime: below this value it is interpreted as block number, otherwise as UNIX timestamp.
