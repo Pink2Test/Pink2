@@ -13,6 +13,7 @@ const std::string CLIENT_NAME("Pinkcoin");
 // Client version number
 #define CLIENT_VERSION_SUFFIX   " Tranzium (TESTNET => Build 0)"
 
+
 // The following part of the code determines the CLIENT_BUILD variable.
 // Several mechanisms are used for this:
 // * first, if HAVE_BUILD_INFO is defined, include build.h, a file that is

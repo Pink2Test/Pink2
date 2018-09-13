@@ -608,7 +608,6 @@ void StakeMiner(CWallet *pwallet)
         int64_t nFees;
         int64_t nPoolFees;
         unique_ptr<CBlock> pblock(CreateNewBlock(pwallet, true, &nFees, &nPoolFees));
-
         if (!pblock.get())
             return;
 
