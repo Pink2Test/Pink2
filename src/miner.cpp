@@ -146,7 +146,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
 
         txNew.vout[0].SetEmpty();
 
-        if (!fProofOfStake && vIndex->ballotStack.size() > 0)
+        if (!fProofOfStake && vIndex->ballotStack.size() > 0U)
         {
                 vector<vector<unsigned char>> ballotBlock;
                 BallotStack checkStack;
@@ -154,14 +154,14 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
 
                 selectBallots(ballotBlock[0], BLOCK_PROOF_POW);
 
-                bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0);
+                bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0U);
                 uint8_t i = 0;
-                while (okBallots && i < 3 && ballotBlock[i].size() > 0 && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
+                while (okBallots && i < 3 && ballotBlock[i].size() > 0U && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
                 {
                     i++;
                     ballotBlock.resize(i+1);
                     selectBallots(ballotBlock[i], BLOCK_PROOF_POW, 100 * i);
-                    okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0);
+                    okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0U);
                 }
 
                 if (!okBallots)
@@ -172,6 +172,7 @@ CBlock* CreateNewBlock(CWallet* pwallet, bool fProofOfStake, int64_t* pFees, int
                 {
                     txNew.vout.resize(i+2);
                     txNew.vout[i+1].scriptPubKey = CScript() << OP_VOTE <= ballotBlock[i];
+                    txNew.vout[i+1].nValue = 0;
                 }
         }
     }
@@ -447,7 +448,7 @@ void IncrementExtraNonce(CBlock* pblock, CBlockIndex* pindexPrev, unsigned int& 
 
     unsigned int nHeight = pindexPrev->nHeight+1; // Height first in coinbase required for block.version=2
     pblock->vtx[0].vin[0].scriptSig = (CScript() << nHeight << CBigNum(nExtraNonce)) + COINBASE_FLAGS;
-    assert(pblock->vtx[0].vin[0].scriptSig.size() <= 100);
+    assert(pblock->vtx[0].vin[0].scriptSig.size() <= 100U);
 
     pblock->hashMerkleRoot = pblock->BuildMerkleTree();
 }

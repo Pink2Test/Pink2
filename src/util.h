@@ -541,7 +541,7 @@ inline uint160 Hash160(const std::vector<unsigned char>& vch)
 template <typename T>
 bool TimingResistantEqual(const T& a, const T& b)
 {
-    if (b.size() == 0) return a.size() == 0;
+    if (b.size() == 0U) return a.size() == 0U;
     size_t accumulator = a.size() ^ b.size();
     for (size_t i = 0; i < a.size(); i++)
         accumulator |= a[i] ^ b[i%b.size()];

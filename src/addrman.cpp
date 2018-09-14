@@ -388,7 +388,7 @@ void CAddrMan::Attempt_(const CService &addr, int64_t nTime)
 
 CAddress CAddrMan::Select_(int nUnkBias)
 {
-    if (size() == 0)
+    if (size() == 0U)
         return CAddress();
 
     double nCorTried = sqrt(nTried) * (100.0 - nUnkBias);
@@ -401,7 +401,7 @@ CAddress CAddrMan::Select_(int nUnkBias)
         {
             int nKBucket = GetRandInt(vvTried.size());
             std::vector<int> &vTried = vvTried[nKBucket];
-            if (vTried.size() == 0) continue;
+            if (vTried.size() == 0U) continue;
             int nPos = GetRandInt(vTried.size());
             assert(mapInfo.count(vTried[nPos]) == 1);
             CAddrInfo &info = mapInfo[vTried[nPos]];
@@ -416,7 +416,7 @@ CAddress CAddrMan::Select_(int nUnkBias)
         {
             int nUBucket = GetRandInt(vvNew.size());
             std::set<int> &vNew = vvNew[nUBucket];
-            if (vNew.size() == 0) continue;
+            if (vNew.size() == 0U) continue;
             int nPos = GetRandInt(vNew.size());
             std::set<int>::iterator it = vNew.begin();
             while (nPos--)

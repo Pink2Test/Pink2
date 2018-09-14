@@ -52,10 +52,10 @@ enum txnouttype
 
 struct CPollIDDest : public std::vector<unsigned char>
 {
-    uint32_t ID;
     CPollIDDest() : ID(0) { this->resize(4, '\0'); }
-    CPollIDDest(const uint32_t &in) : ID(in) { this->resize(4); memcpy(&*this, &ID, 4); }
-    CPollIDDest(std::vector<unsigned char> &in) : ID(0) { assert(in.size() == 4); memcpy(&ID, &in, 4); }
+    CPollIDDest(const uint32_t &in) : ID(in) { unsigned char buf[4]; memcpy(&buf, &ID, 4); for (uint8_t i = 0; i < 4; i++) this->push_back(buf[i]);}
+    CPollIDDest(const std::vector<unsigned char> &in) :  std::vector<unsigned char>(in), ID(0) { assert(in.size() == 4U); memcpy(&ID, &in[0], 4); }
+    uint32_t ID;
 };
 
 class CNoDestination {
@@ -228,7 +228,7 @@ const char* GetOpName(opcodetype opcode);
 
 inline std::string ValueString(const std::vector<unsigned char>& vch)
 {
-    if (vch.size() <= 4)
+    if (vch.size() <= 4U)
         return strprintf("%d", CBigNum(vch).getint());
     else
         return HexStr(vch);
@@ -400,12 +400,17 @@ public:
 
     CScript& operator<=(const std::vector<unsigned char>& b)
     {
-        if (b.size() > 2)
+        if (b.size() > 2U && (b[0] & (1U << 7)))
         {
             unsigned char tB[3]; memcpy(&tB[1], &b[0], 2);
             tB[0] = tB[2]; tB[1] &= 0x0F;
             uint16_t cSize; memcpy(&cSize, &tB[0], 2);
             if (b.size() == 11U + cSize)
+                insert(end(), b.begin(), b.end());
+        } else if (b.size() > 5U && !(b[0] & (1U << 7))) {
+            unsigned char nBallots = b[0];
+            uint16_t cSize = (nBallots & 1U) ? (nBallots -1) * 5 + 5 : nBallots * 5;
+            if (b.size() == cSize + 1U)
                 insert(end(), b.begin(), b.end());
         }
         return *this;
@@ -525,7 +530,7 @@ public:
         opcodetype opcode;
         do
         {
-            while (end() - pc >= (long)b.size() && memcmp(&pc[0], &b[0], b.size()) == 0)
+            while (end() - pc >= (long)b.size() && memcmp(&pc[0], &b[0], b.size()) == 0U)
             {
                 erase(pc, pc + b.size());
                 ++nFound;

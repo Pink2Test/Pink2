@@ -444,7 +444,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         SoftSetBoolArg("-listen", true);
     }
 
-    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0) {
+    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0U) {
         // when only connecting to trusted nodes, do not seed via DNS, or listen by default
         SoftSetBoolArg("-dnsseed", false);
         SoftSetBoolArg("-listen", false);
@@ -842,7 +842,7 @@ bool AppInit2(boost::thread_group& threadGroup)
         for (map<uint256, CBlockIndex*>::iterator mi = mapBlockIndex.begin(); mi != mapBlockIndex.end(); ++mi)
         {
             uint256 hash = (*mi).first;
-            if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0)
+            if (strncmp(hash.ToString().c_str(), strMatch.c_str(), strMatch.size()) == 0U)
             {
                 CBlockIndex* pindex = (*mi).second;
                 CBlock block;

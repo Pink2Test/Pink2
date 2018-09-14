@@ -426,7 +426,7 @@ bool ParseMoney(const char* pszIn, int64_t& nRet)
     for (; *p; p++)
         if (!isspace(*p))
             return false;
-    if (strWhole.size() > 10) // guard against 63 bit overflow
+    if (strWhole.size() > 10U) // guard against 63 bit overflow
         return false;
     if (nUnits < 0 || nUnits > COIN)
         return false;
@@ -463,7 +463,7 @@ bool IsHex(const string& str)
         if (phexdigit[c] < 0)
             return false;
     }
-    return (str.size() > 0) && (str.size()%2 == 0);
+    return (str.size() > 0U) && (str.size()%2 == 0);
 }
 
 vector<unsigned char> ParseHex(const char* psz)
