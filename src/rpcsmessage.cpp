@@ -19,7 +19,7 @@ extern void TxToJSON(const CTransaction& tx, const uint256 hashBlock, json_spiri
 
 Value smsgenable(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "smsgenable \n"
             "Enable secure messaging.");
@@ -40,7 +40,7 @@ Value smsgenable(const Array& params, bool fHelp)
 
 Value smsgdisable(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "smsgdisable \n"
             "Disable secure messaging.");
@@ -60,13 +60,13 @@ Value smsgdisable(const Array& params, bool fHelp)
 
 Value smsgoptions(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 3U)
+    if (fHelp || params.size() > 3)
         throw runtime_error(
             "smsgoptions [list|set <optname> <value>]\n"
             "List and manage options.");
     
     std::string mode = "list";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         mode = params[0].get_str();
     };
@@ -82,7 +82,7 @@ Value smsgoptions(const Array& params, bool fHelp)
     } else
     if (mode == "set")
     {
-        if (params.size() < 3U)
+        if (params.size() < 3)
         {
             result.push_back(Pair("result", "Too few parameters."));
             result.push_back(Pair("expected", "set <optname> <value>"));
@@ -138,7 +138,7 @@ Value smsgoptions(const Array& params, bool fHelp)
 
 Value smsglocalkeys(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 3U)
+    if (fHelp || params.size() > 3)
         throw runtime_error(
             "smsglocalkeys [whitelist|all|wallet|recv <+/-> <address>|anon <+/-> <address>]\n"
             "List and manage keys.");
@@ -149,7 +149,7 @@ Value smsglocalkeys(const Array& params, bool fHelp)
     Object result;
     
     std::string mode = "whitelist";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         mode = params[0].get_str();
     };
@@ -206,7 +206,7 @@ Value smsglocalkeys(const Array& params, bool fHelp)
     } else
     if (mode == "recv")
     {
-        if (params.size() < 3U)
+        if (params.size() < 3)
         {
             result.push_back(Pair("result", "Too few parameters."));
             result.push_back(Pair("expected", "recv <+/-> <address>"));
@@ -253,7 +253,7 @@ Value smsglocalkeys(const Array& params, bool fHelp)
     } else
     if (mode == "anon")
     {
-        if (params.size() < 3U)
+        if (params.size() < 3)
         {
             result.push_back(Pair("result", "Too few parameters."));
             result.push_back(Pair("expected", "anon <+/-> <address>"));
@@ -346,7 +346,7 @@ Value smsglocalkeys(const Array& params, bool fHelp)
 
 Value smsgscanchain(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "smsgscanchain \n"
             "Look for public keys in the block chain.");
@@ -367,7 +367,7 @@ Value smsgscanchain(const Array& params, bool fHelp)
 
 Value smsgscanbuckets(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "smsgscanbuckets \n"
             "Force rescan of all messages in the bucket store.");
@@ -391,7 +391,7 @@ Value smsgscanbuckets(const Array& params, bool fHelp)
 
 Value smsgaddkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2U)
+    if (fHelp || params.size() != 2)
         throw runtime_error(
             "smsgaddkey <address> <pubkey>\n"
             "Add address, pubkey pair to database.");
@@ -425,7 +425,7 @@ Value smsgaddkey(const Array& params, bool fHelp)
 
 Value smsggetpubkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1U)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "smsggetpubkey <address>\n"
             "Return the base58 encoded compressed public key for an address.\n"
@@ -509,7 +509,7 @@ Value smsggetpubkey(const Array& params, bool fHelp)
 
 Value smsgsend(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3U)
+    if (fHelp || params.size() != 3)
         throw runtime_error(
             "smsgsend <addrFrom> <addrTo> <message>\n"
             "Send an encrypted message from addrFrom to addrTo.");
@@ -537,7 +537,7 @@ Value smsgsend(const Array& params, bool fHelp)
 
 Value smsgsendanon(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2U)
+    if (fHelp || params.size() != 2)
         throw runtime_error(
             "smsgsendanon <addrTo> <message>\n"
             "Send an anonymous encrypted message to addrTo.");
@@ -564,7 +564,7 @@ Value smsgsendanon(const Array& params, bool fHelp)
 
 Value smsginbox(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U) // defaults to read
+    if (fHelp || params.size() > 1) // defaults to read
         throw runtime_error(
             "smsginbox [all|unread|clear]\n" 
             "Decrypt and display all received messages.\n"
@@ -577,7 +577,7 @@ Value smsginbox(const Array& params, bool fHelp)
         throw runtime_error("Wallet is locked.");
     
     std::string mode = "unread";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         mode = params[0].get_str();
     }
@@ -677,7 +677,7 @@ Value smsginbox(const Array& params, bool fHelp)
 
 Value smsgoutbox(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U) // defaults to read
+    if (fHelp || params.size() > 1) // defaults to read
         throw runtime_error(
             "smsgoutbox [all|clear]\n" 
             "Decrypt and display all sent messages.\n"
@@ -690,7 +690,7 @@ Value smsgoutbox(const Array& params, bool fHelp)
         throw runtime_error("Wallet is locked.");
     
     std::string mode = "all";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         mode = params[0].get_str();
     }
@@ -771,7 +771,7 @@ Value smsgoutbox(const Array& params, bool fHelp)
 
 Value smsgbuckets(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "smsgbuckets [stats|dump]\n"
             "Display some statistics.");
@@ -780,7 +780,7 @@ Value smsgbuckets(const Array& params, bool fHelp)
         throw runtime_error("Secure messaging is disabled.");
     
     std::string mode = "stats";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         mode = params[0].get_str();
     };
@@ -826,7 +826,7 @@ Value smsgbuckets(const Array& params, bool fHelp)
                 if (!boost::filesystem::exists(fullPath))
                 {
                     // -- If there is a file for an empty bucket something is wrong.
-                    if (tokenSet.size() == 0U)
+                    if (tokenSet.size() == 0)
                         objM.push_back(Pair("file size", "Empty bucket."));
                     else
                         objM.push_back(Pair("file size, error", "File not found."));

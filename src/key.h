@@ -86,11 +86,11 @@ public:
     }
 
     bool IsValid() const {
-        return vchPubKey.size() == 33U || vchPubKey.size() == 65U;
+        return vchPubKey.size() == 33 || vchPubKey.size() == 65;
     }
 
     bool IsCompressed() const {
-        return vchPubKey.size() == 33U;
+        return vchPubKey.size() == 33;
     }
 
     std::vector<unsigned char> Raw() const {

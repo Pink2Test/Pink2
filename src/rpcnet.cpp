@@ -14,7 +14,7 @@ using namespace std;
 
 Value getconnectioncount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "getconnectioncount\n"
             "Returns the number of connections to other nodes.");
@@ -38,7 +38,7 @@ static void CopyNodeStats(std::vector<CNodeStats>& vstats)
 
 Value getpeerinfo(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "getpeerinfo\n"
             "Returns data about each connected network node.");
@@ -70,7 +70,7 @@ Value getpeerinfo(const Array& params, bool fHelp)
 
 Value getnodes(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "getnodes\n"
             "Returns each connected network node as addnodes in conf friendly format.");
@@ -96,7 +96,7 @@ Value getnodes(const Array& params, bool fHelp)
 // ThreadRPCServer: holds cs_main and acquiring cs_vSend in alert.RelayTo()/PushMessage()/BeginMessage()
 Value sendalert(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 6U)
+    if (fHelp || params.size() < 6)
         throw runtime_error(
             "sendalert <message> <privatekey> <minver> <maxver> <priority> <id> [cancelupto]\n"
             "<message> is the alert text message\n"
@@ -116,7 +116,7 @@ Value sendalert(const Array& params, bool fHelp)
     alert.nMaxVer = params[3].get_int();
     alert.nPriority = params[4].get_int();
     alert.nID = params[5].get_int();
-    if (params.size() > 6U)
+    if (params.size() > 6)
         alert.nCancel = params[6].get_int();
     alert.nVersion = PROTOCOL_VERSION;
     alert.nRelayUntil = GetAdjustedTime() + 365*24*60*60;

@@ -151,7 +151,7 @@ bool RecvLine(SOCKET hSocket, string& strLine)
             if (c == '\r')
                 return true;
             strLine += c;
-            if (strLine.size() >= 9000U)
+            if (strLine.size() >= 9000)
                 return true;
         }
         else if (nBytes <= 0)
@@ -332,7 +332,7 @@ bool GetMyExternalIP2(const CService& addrConnect, const char* pszGet, const cha
             if (strLine.find("<") != string::npos)
                 strLine = strLine.substr(0, strLine.find("<"));
             strLine = strLine.substr(strspn(strLine.c_str(), " \t\n\r"));
-            while (strLine.size() > 0U && isspace(strLine[strLine.size()-1]))
+            while (strLine.size() > 0 && isspace(strLine[strLine.size()-1]))
                 strLine.resize(strLine.size()-1);
             CService addr(strLine,0,true);
             printf("GetMyExternalIP() received [%s] %s\n", strLine.c_str(), addr.ToString().c_str());
@@ -1308,7 +1308,7 @@ void ThreadDNSAddressSeed2(void* parg)
         MilliSleep(11 * 1000);
 
         LOCK(cs_vNodes);
-        if (vNodes.size() >= 2U) {
+        if (vNodes.size() >= 2) {
             printf("P2P peers available. Skipped DNS seeding.\n");
             return;
         }
@@ -1462,7 +1462,7 @@ void ThreadOpenConnections2(void* parg)
     printf("ThreadOpenConnections started\n");
 
     // Connect to specific addresses
-    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0U)
+    if (mapArgs.count("-connect") && mapMultiArgs["-connect"].size() > 0)
     {
         for (int64_t nLoop = 0;; nLoop++)
         {
@@ -1502,7 +1502,7 @@ void ThreadOpenConnections2(void* parg)
             return;
 
         // Add seed nodes if IRC isn't working
-        if (addrman.size()==0U && (GetTime() - nStart > 60) && !fTestNet)
+        if (addrman.size()==0 && (GetTime() - nStart > 60) && !fTestNet)
         {
             std::vector<CAddress> vAdd;
             for (unsigned int i = 0; i < ARRAYLEN(pnSeed); i++)

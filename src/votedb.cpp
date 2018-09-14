@@ -43,7 +43,7 @@ bool CVoteDB::WriteVote(const CVotePoll& votePoll, bool isLocal)
     for (int i = 0; i < 7 ; i++ )
     {
         option[i] = "option" + to_string(i) + Local;
-        if (Local.size() == 0U)
+        if (Local.size() == 0)
         {
             tallyPOS[i] = "tPOS" + to_string(i);
             tallyFPOS[i] = "tFPOS" + to_string(i);
@@ -170,7 +170,7 @@ bool CVoteDB::EraseVote(const CVotePoll& votePoll, bool isLocal)
     {                                                         // when we load them again later.
         if (Erase(make_pair(option[i], sPollID)))
             success = true;
-        if (Local.size() == 0U)
+        if (Local.size() == 0)
         {
                 if (Erase(make_pair(tallyPOS[i], sPollID)))
                 success = true;
@@ -216,7 +216,7 @@ bool CVoteDB::ReadVote(const CVotePoll& votePollID, CVotePoll& votePoll, bool is
     for (int i = 0; i < 7 ; i++ )
     {
         option[i] = "option" + to_string(i) + Local;
-        if (Local.size() == 0U)
+        if (Local.size() == 0)
         {
                 tallyPOS[i] = "tPOS" + to_string(i);
                 tallyFPOS[i] = "tFPOS" + to_string(i);
@@ -397,7 +397,7 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
 
         ssKey >> strType;
 
-        if (ssKey.size() > 0U)
+        if (ssKey.size() > 0)
         {
             ssKey >> strVoteID;
 
@@ -650,7 +650,6 @@ ReadElementValue(CVote* voteIndex, CDataStream& ssKey, CDataStream& ssValue, str
         {
             string strOpSelection;
             ssValue >> strOpSelection;
-
             activeBallot.OpSelection = (COptionID)stoi(strOpSelection);
             activeBallot.PollID = activePoll.ID;
 

@@ -107,14 +107,14 @@ public:
 
 Value importprivkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1U || params.size() > 2U)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "importprivkey <pinkcoinprivkey> [label]\n"
             "Adds a private key (as returned by dumpprivkey) to your wallet.");
 
     string strSecret = params[0].get_str();
     string strLabel = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         strLabel = params[1].get_str();
     CBitcoinSecret vchSecret;
     bool fGood = vchSecret.SetString(strSecret);
@@ -155,7 +155,7 @@ Value importprivkey(const Array& params, bool fHelp)
 
 Value importwallet(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1U)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "importwallet <filename>\n"
             "Imports keys from a wallet dump file (see dumpwallet).");
@@ -179,7 +179,7 @@ Value importwallet(const Array& params, bool fHelp)
 
         std::vector<std::string> vstr;
         boost::split(vstr, line, boost::is_any_of(" "));
-        if (vstr.size() < 2U)
+        if (vstr.size() < 2)
             continue;
         CBitcoinSecret vchSecret;
         if (!vchSecret.SetString(vstr[0]))
@@ -243,7 +243,7 @@ Value importwallet(const Array& params, bool fHelp)
 
 Value dumpprivkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1U)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "dumpprivkey <pinkcoinaddress>\n"
             "Reveals the private key corresponding to <pinkcoinaddress>.");
@@ -268,7 +268,7 @@ Value dumpprivkey(const Array& params, bool fHelp)
 
 Value dumpwallet(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1U)
+    if (fHelp || params.size() != 1)
         throw runtime_error(
             "dumpwallet <filename>\n"
             "Dumps all wallet keys in a human-readable format.");

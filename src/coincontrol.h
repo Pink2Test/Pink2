@@ -21,7 +21,7 @@ public:
     
     bool HasSelected() const
     {
-        return (setSelected.size() > 0U);
+        return (setSelected.size() > 0);
     }
     
     bool IsSelected(const uint256& hash, unsigned int n) const

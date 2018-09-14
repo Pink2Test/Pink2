@@ -33,7 +33,7 @@ bool CStealthAddress::SetEncoded(const std::string& encodedAddress)
         return false;
     };
     
-    if (raw.size() < 1U + 1U + 33U + 1U + 33U + 1U + 1U + 4U)
+    if (raw.size() < 1 + 1 + 33 + 1 + 33 + 1 + 1 + 4)
     {
         if (fDebug)
             printf("CStealthAddress::SetEncoded() too few bytes provided.\n");
@@ -121,7 +121,7 @@ void AppendChecksum(data_chunk& data)
 
 bool VerifyChecksum(const data_chunk& data)
 {
-    if (data.size() < 4U)
+    if (data.size() < 4)
         return false;
     
     uint32_t checksum = from_little_endian<uint32_t>(data.end() - 4);
@@ -663,7 +663,7 @@ bool IsStealthAddress(const std::string& encodedAddress)
         return false;
     };
     
-    if (raw.size() < 1U + 1U + 33U + 1U + 33U + 1U + 1U + 4U)
+    if (raw.size() < 1 + 1 + 33 + 1 + 33 + 1 + 1 + 4)
     {
         //printf("IsStealthAddress too few bytes provided.\n");
         return false;

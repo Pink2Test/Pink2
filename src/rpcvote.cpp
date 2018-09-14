@@ -50,7 +50,7 @@ void SetTime (string& setTime, CPollTime& pollTime)
 void BallotInfo(const Array& params, Object& retObj, string& helpText)
 {      
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -65,10 +65,7 @@ void BallotInfo(const Array& params, Object& retObj, string& helpText)
         try
         {
             retObj.push_back(Pair("PollID", to_string(vIndex->current.ballot->PollID)));
-            if (vIndex->current.ballot->OpSelection > 0)
-                retObj.push_back(Pair("Selected", vIndex->current.poll->Option[vIndex->current.ballot->OpSelection - 1]));
-            else
-                retObj.push_back(Pair("Option", "None Selected"));
+            retObj.push_back(Pair("Selection", vIndex->current.poll->Option[vIndex->current.ballot->OpSelection]));
         } catch (...) {
             throw runtime_error("Failed to retrieve ballot info.\n");
         }
@@ -162,7 +159,7 @@ void GetPoll(Object& retObj)
 void PollInfo(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -181,7 +178,7 @@ void PollInfo(const Array& params, Object& retObj, string& helpText)
 void Tally(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -194,39 +191,19 @@ void Tally(const Array& params, Object& retObj, string& helpText)
     if (!HaveActive())
         return;
 
-    if (vIndex->pollCache.find(vIndex->current.poll->ID) == vIndex->pollCache.end())
-        throw runtime_error("Cannot display tally for a poll that is not in the blockchain.\n");
-
-    CVotePoll p; p.pollCopy(vIndex->pollCache.at(vIndex->current.poll->ID));
-
-    if (p.Option.size() != p.nTally.size())
-        throw runtime_error("Option count doesn't match tally count, please contact your friendly neighborhood Developer for assistance. \n");
-
-    for (uint8_t i = 0; i < p.nTally.size();  i++)
-    {
-        Object retTally;
-        retTally.push_back(Pair("POS", to_string((int64_t)p.nTally.at(i).POS)));
-        retTally.push_back(Pair("FPOS", to_string((int64_t)p.nTally.at(i).FPOS)));
-        retTally.push_back(Pair("POW", to_string((int64_t)p.nTally.at(i).POW)));
-        retTally.push_back(Pair("COIN", to_string((int64_t)p.nTally.at(i).D4L)));
-
-        retObj.push_back(Pair("Option #" + to_string((int)i), p.Option[i]));
-        retObj.push_back(Pair("Tally" , retTally));
-    }
-
-
+    retObj.push_back(Pair("tally", "WIP"));
 }
 
 void CastVote(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     int numCoins = stoi(param1);
     string checkSize = to_string(numCoins);
 
-    if (param1 != checkSize || params.size() > 2U)
+    if (param1 != checkSize || params.size() > 2)
         helpText = ("vote cast [# of Pink to contribute if required by poll]\n"
                             "Prepares the current ballot and checks that all requirements are\n"
                             "met in order to be cast to the network.\n");
@@ -243,7 +220,7 @@ void CastVote(const Array& params, Object& retObj, string& helpText)
 void Confirm(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -281,7 +258,7 @@ void Confirm(const Array& params, Object& retObj, string& helpText)
 void GetActive(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -302,14 +279,15 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
     string param1 = "";
     string checkSize = "";
     uint8_t nSelect = 0;
-    if (params.size() > 1U) {
+    if (params.size() > 1) {
         param1 = params[1].get_str();
 
         nSelect = stoi(param1);
         checkSize = to_string((int)nSelect);
+        // checkSize = checkSize.substr(checkSize.size() -1, 1); // needed because to_string sometimes throws in a leading null on uint8_t (aka unsigned char).
     }
 
-    if (param1 == "" || param1 != checkSize || nSelect > vIndex->current.poll->Option.size() || params.size() > 2U)
+    if (param1 == "" || param1 != checkSize || nSelect > vIndex->current.poll->Option.size() || params.size() > 2)
         helpText = ("vote makeselection <selection number>\n"
                             "Sets the selected option on your ballot for the currently active poll.\n");
 
@@ -343,7 +321,7 @@ void MakeSelection(const Array& params, Object& retObj, string& helpText)
 void NewPoll(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -369,12 +347,12 @@ void NewPoll(const Array& params, Object& retObj, string& helpText)
 void SetActive(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     CPollID pollID = (CPollID)stoul(param1);
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote setactive [PollID]\n"
                             "Sets the currently active poll.\n");
     if (helpText != "")
@@ -393,7 +371,7 @@ void SetActive(const Array& params, Object& retObj, string& helpText)
 void SubmitPoll(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     if (param1 != "")
@@ -435,10 +413,10 @@ void SubmitPoll(const Array& params, Object& retObj, string& helpText)
 void PollName(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote pollname [name] \n"
                             "Sets the name for the currently active poll.\n");
 
@@ -468,10 +446,10 @@ void PollName(const Array& params, Object& retObj, string& helpText)
 void PollQuestion(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote pollquestion [question text] \n"
                             "Sets the question for the currently active poll.\n");
 
@@ -498,10 +476,10 @@ void PollQuestion(const Array& params, Object& retObj, string& helpText)
 void PollStart(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote pollstart [unix timestamp] \n"
                             "Sets the start time for the currently active poll.\n");
     if (helpText != "")
@@ -527,10 +505,10 @@ void PollStart(const Array& params, Object& retObj, string& helpText)
 void PollEnd(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote pollend [unix timestamp] \n"
                             "Sets the end time for the currently active poll.\n");
     if (helpText != "")
@@ -603,10 +581,10 @@ void unsetForced()
 void SetFlag(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote setflag [flag] \n"
                         "Sets a particular flag for the currently active poll.\n"
                         "Available flags:\n"
@@ -644,10 +622,10 @@ void SetFlag(const Array& params, Object& retObj, string& helpText)
 void UnsetFlag(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote unsetflag [flag] \n"
                     "Sets a particular flag for the currently active poll.\n"
                         "Available flags:\n"
@@ -681,10 +659,10 @@ void UnsetFlag(const Array& params, Object& retObj, string& helpText)
 void AddOption(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || param1.size() > POLL_OPTION_SIZE || params.size() > 2U)
+    if (param1 == "help" || param1.size() > POLL_OPTION_SIZE || params.size() > 2)
         helpText = ("vote addoption [option text] \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
     if (helpText != "")
@@ -718,10 +696,10 @@ void AddOption(const Array& params, Object& retObj, string& helpText)
 void RemoveOption(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote removeoption [option number] \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
 
@@ -768,10 +746,10 @@ void RemoveOption(const Array& params, Object& retObj, string& helpText)
 void FromAddress(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote fundaddress [option number] \n"
                             "Sets the address to fund the poll from (not yet functional).\n");
 
@@ -788,10 +766,10 @@ void FromAddress(const Array& params, Object& retObj, string& helpText)
 void OwnerAddress(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote address [option number] \n"
                     "Sets the owner address for the poll. Required for proving poll ownership.\n");
 
@@ -892,7 +870,7 @@ void ListPolls(Object& retObj, uint64_t& nPage, const LIST_POLL_TYPE& type)
 void ListActive(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
@@ -900,7 +878,7 @@ void ListActive(const Array& params, Object& retObj, string& helpText)
 
     string checkSize = to_string(nPage);
 
-    if (param1 != checkSize || params.size() > 2U)
+    if (param1 != checkSize || params.size() > 2)
         helpText = ("vote listactive [page number]\n"
                             "Lists the PollID's, Names, and Ending Times of all open polls on the network .\n");
 
@@ -913,7 +891,7 @@ void ListActive(const Array& params, Object& retObj, string& helpText)
 void ListComplete(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
@@ -921,7 +899,7 @@ void ListComplete(const Array& params, Object& retObj, string& helpText)
 
     string checkSize = to_string(nPage);
 
-    if (param1 != checkSize || params.size() > 2U)
+    if (param1 != checkSize || params.size() > 2)
         helpText = ("vote listcomplete [page number]\n"
                             "Lists the PollID's, Names, and Ending Times of all completed polls on the network .\n");
 
@@ -935,7 +913,7 @@ void ListComplete(const Array& params, Object& retObj, string& helpText)
 void ListUpcoming(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
@@ -943,7 +921,7 @@ void ListUpcoming(const Array& params, Object& retObj, string& helpText)
 
     string checkSize = to_string(nPage);
 
-    if (param1 != checkSize || params.size() > 2U)
+    if (param1 != checkSize || params.size() > 2)
         helpText = ("vote listupcoming [page number]\n"
                             "Lists the PollID's, Names and Starting Times of all upcoming polls on the network .\n");
 
@@ -956,7 +934,7 @@ void ListUpcoming(const Array& params, Object& retObj, string& helpText)
 void SearchName(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     int nPage = 0;
@@ -966,7 +944,7 @@ void SearchName(const Array& params, Object& retObj, string& helpText)
     if (nPage > 0)
         printf("Have Pages\n");
 
-    if (param1 != "help" || params.size() > 3U)
+    if (param1 != "help" || params.size() > 3)
         helpText = ("vote searchname \"<search text>\" [page number]\n"
                             "Searches the names of all polls and returns their PollID and full name.\n");
 
@@ -979,7 +957,7 @@ void SearchName(const Array& params, Object& retObj, string& helpText)
 void SearchQuestion(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     int nPage = 0;
@@ -989,7 +967,7 @@ void SearchQuestion(const Array& params, Object& retObj, string& helpText)
     if (nPage > 0)
         printf("Have Pages\n");
 
-    if (param1 != "help" || params.size() > 3U)
+    if (param1 != "help" || params.size() > 3)
         helpText = ("vote searchname \"<search text>\" [page number]\n"
                             "Searches the names of all polls and returns their PollID, full name, and question.\n");
 
@@ -1002,10 +980,10 @@ void SearchQuestion(const Array& params, Object& retObj, string& helpText)
 void AddPoll(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 != "help" || params.size() > 2U)
+    if (param1 != "help" || params.size() > 2)
         helpText = ("vote add <PollID> \n"
                             "Adds the poll matching PollID to your locally saved polls to vote on later.\n");
     if (helpText != "")
@@ -1018,7 +996,7 @@ void AddPoll(const Array& params, Object& retObj, string& helpText)
 void ListLocal(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
     uint64_t nPage = isNumber(param1) ? stoul(param1) : 0;
@@ -1026,7 +1004,7 @@ void ListLocal(const Array& params, Object& retObj, string& helpText)
 
     string checkSize = to_string(nPage);
 
-    if (param1 != checkSize || params.size() > 2U)
+    if (param1 != checkSize || params.size() > 2)
         helpText = ("vote listlocal [page number]\n"
                             "Lists the PollID's, Names, and Ending Times of all polls that you have saved locally off-chain.\n");
 
@@ -1038,10 +1016,10 @@ void ListLocal(const Array& params, Object& retObj, string& helpText)
 void RemovePoll(const Array& params, Object& retObj, string& helpText)
 {
     string param1 = "";
-    if (params.size() > 1U)
+    if (params.size() > 1)
         param1 = params[1].get_str();
 
-    if (param1 == "help" || params.size() > 2U)
+    if (param1 == "help" || params.size() > 2)
         helpText = ("vote remove <PollID> \n"
                             "Removes the poll matching PollID from your locally saved polls.\n");
 
@@ -1118,7 +1096,7 @@ Value vote(const Array& params, bool fHelp)
                       "|  add [PollID]\n"
                       "|  listlocal [page number]\n"
                       "|  remove [PollID]\n");
-    if (fHelp || params.size() < 1U)
+    if (fHelp || params.size() < 1)
         throw runtime_error(helpText);
 
     string command = params[0].get_str();

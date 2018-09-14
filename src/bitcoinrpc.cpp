@@ -200,13 +200,13 @@ string CRPCTable::help(string strCommand) const
 
 Value help(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "help [command]\n"
             "List commands, or get help for a command.");
 
     string strCommand;
-    if (params.size() > 0U)
+    if (params.size() > 0)
         strCommand = params[0].get_str();
 
     return tableRPC.help(strCommand);
@@ -215,13 +215,13 @@ Value help(const Array& params, bool fHelp)
 
 Value stop(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "stop <detach>\n"
             "<detach> is true or false to detach the database or not for this stop only\n"
             "Stop Pinkcoin server (and possibly override the detachdb config value).");
     // Shutdown will take long enough that the response should get back
-    if (params.size() > 0U)
+    if (params.size() > 0)
         bitdb.SetDetach(params[0].get_bool());
     StartShutdown();
     return "Pinkcoin server stopping";
@@ -453,7 +453,7 @@ bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
     // HTTP request line is space-delimited
     vector<string> vWords;
     boost::split(vWords, str, boost::is_any_of(" "));
-    if (vWords.size() < 2U)
+    if (vWords.size() < 2)
         return false;
 
     // HTTP methods permitted: GET, POST
@@ -463,12 +463,12 @@ bool ReadHTTPRequestLine(std::basic_istream<char>& stream, int &proto,
 
     // HTTP URI must be an absolute path, relative to current host
     http_uri = vWords[1];
-    if (http_uri.size() == 0U || http_uri[0] != '/')
+    if (http_uri.size() == 0 || http_uri[0] != '/')
         return false;
 
     // parse proto, if present
     string strProto = "";
-    if (vWords.size() > 2U)
+    if (vWords.size() > 2)
         strProto = vWords[2];
 
     proto = 0;
@@ -485,7 +485,7 @@ int ReadHTTPStatus(std::basic_istream<char>& stream, int &proto)
     getline(stream, str);
     vector<string> vWords;
     boost::split(vWords, str, boost::is_any_of(" "));
-    if (vWords.size() < 2U)
+    if (vWords.size() < 2)
         return HTTP_INTERNAL_SERVER_ERROR;
     proto = 0;
     const char *ver = strstr(str.c_str(), "HTTP/1.");
@@ -1085,7 +1085,7 @@ void ThreadRPCServer3(void* parg)
             /* Deter brute-forcing short passwords.
                If this results in a DOS the user really
                shouldn't have their RPC port exposed.*/
-            if (mapArgs["-rpcpassword"].size() < 20U)
+            if (mapArgs["-rpcpassword"].size() < 20)
                 MilliSleep(250);
 
             conn->stream() << HTTPReply(HTTP_UNAUTHORIZED, "", false) << std::flush;
@@ -1399,7 +1399,7 @@ void specialOutput(std::string strMethod, std::string *strOut)
 
     if (strMethod = "getnodes")
     {
-        if (fHelp || params.size() != 0U)
+        if (fHelp || params.size() != 0)
             throw runtime_error(
                 "getnodes\n"
                 "Returns each connected network node as addnodes in conf friendly format.");

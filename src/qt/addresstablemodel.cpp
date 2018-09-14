@@ -104,7 +104,7 @@ public:
             std::set<CStealthAddress>::iterator it;
             for (it = wallet->stealthAddresses.begin(); it != wallet->stealthAddresses.end(); ++it)
             {
-                bool fMine = !(it->scan_secret.size() < 1U);
+                bool fMine = !(it->scan_secret.size() < 1);
 
                 cachedAddressTable.append(AddressTableEntry(fMine ? AddressTableEntry::Receiving : AddressTableEntry::Sending,
                                   QString::fromStdString(it->label),

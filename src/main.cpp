@@ -12,7 +12,6 @@
 #include "ui_interface.h"
 #include "kernel.h"
 #include "smessage.h"
-#include "vote.h"
 #include "time.h"
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/filesystem.hpp>
@@ -76,6 +75,10 @@ map<uint256, set<uint256> > mapOrphanTransactionsByPrev;
 
 // Constant stuff for coinbase transactions we create:
 CScript COINBASE_FLAGS;
+
+// POS Voting:
+CScript VOTE_CASTING;
+CScript VOTE_BALLOT;
 
 const string strMessageMagic = "Pinkcoin Signed Message:\n";
 
@@ -342,21 +345,21 @@ bool CTransaction::IsStandard() const
         // Biggest 'standard' txin is a 3-signature 3-of-3 CHECKMULTISIG
         // pay-to-script-hash, which is 3 ~80-byte signatures, 3
         // ~65-byte public keys, plus a few script ops.
-        if (txin.scriptSig.size() > 500U)
+        if (txin.scriptSig.size() > 500)
             return false;
         if (!txin.scriptSig.IsPushOnly())
             return false;
         if (!txin.scriptSig.HasCanonicalPushes()) {
             return false;
         }
-        if (txin.scriptSig.size() > 0U && (txin.scriptSig.IsVotePoll() || txin.scriptSig.IsVoteBallots()))
+        if (txin.scriptSig.size() > 0 && (txin.scriptSig.IsVotePoll() || txin.scriptSig.IsVoteBallots()))
             return false;
     }
 
     unsigned int nDataOut = 0;
     unsigned int nTxnOut = 0;
 
-    for (uint16_t i = 0; i < vout.size(); i++)
+    for (uint8_t i = 0; i < vout.size(); i++)
     {
         if (vout[i].scriptPubKey.IsVotePoll())
         {
@@ -371,7 +374,7 @@ bool CTransaction::IsStandard() const
                 return false; // VotePoll's are only valid in position 0.
         }
     }
-
+    
     txnouttype whichType;
     BOOST_FOREACH(const CTxOut& txout, vout) {
         if (!::IsStandard(txout.scriptPubKey, whichType))
@@ -562,36 +565,6 @@ bool CTransaction::CheckTransaction() const
         nValueOut += txout.nValue;
         if (!MoneyRange(nValueOut))
             return DoS(100, error("CTransaction::CheckTransaction() : txout total out of range"));
-        if (i == 0 && vout[i].scriptPubKey.IsVotePoll())
-        {
-            /* These checks cover pretty much everything quick we can check now except the feepool payment.
-             * if that's not included then ConnectBlock() will reject it. */
-
-            if(pindexBest->nTime < VOTE_START_DATE && !fTestNet)
-                return DoS(100, error("CTransaction::CheckTransaction() : Voting system not yet available on MainNet."));
-
-            if(vout[i].nValue != 0)
-                return DoS(100, error("CTransaction::CheckTransaction() : Poll should not contain a payment output."));
-
-            vector<unsigned char> rawPoll(&*vout[0].scriptPubKey.begin()+1, &*vout[0].scriptPubKey.end());
-            uint256 dHash(0U);
-            if (!processRawPoll(rawPoll, dHash, 0, true))
-                return DoS(100, error("CTransaction::CheckTransaction() : Poll failed initial checks."));
-
-        } else if (i > 0 && IsCoinBase() && vout[i].scriptPubKey.IsVoteBallots()) {
-
-            if(pindexBest->nTime < VOTE_START_DATE && !fTestNet)
-                return DoS(100, error("CTransaction::CheckTransaction() : Voting system not yet available on MainNet."));
-
-            if(vout[i].nValue != 0)
-                return DoS(100, error("CTransaction::CheckTransaction() : Ballots should not contain a payment output."));
-
-            vector<unsigned char> rawBallots(&*vout[0].scriptPubKey.begin()+1, &*vout[0].scriptPubKey.end());
-            if (!checkBallots(rawBallots))
-                return DoS(100, error("CTransaction::CheckTransaction() : Ballots have an invalid structure."));
-        }
-
-
     }
 
     // Check for duplicate inputs
@@ -605,7 +578,7 @@ bool CTransaction::CheckTransaction() const
 
     if (IsCoinBase())
     {
-        if (vin[0].scriptSig.size() < 2U || vin[0].scriptSig.size() > 200U)
+        if (vin[0].scriptSig.size() < 2 || vin[0].scriptSig.size() > 200)
             return DoS(100, error("CTransaction::CheckTransaction() : coinbase script size is invalid"));
     }
     else
@@ -666,7 +639,7 @@ bool CTxMemPool::accept(CTxDB& txdb, CTransaction &tx,
     if (tx.IsCoinStake())
         return tx.DoS(100, error("CTxMemPool::accept() : coinstake as individual tx"));
 
-    if (tx.vin.size() > 0U && tx.vout.size() > 0U && tx.vout[0].scriptPubKey.IsVotePoll())
+    if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
     {
         vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
         if (!processRawPoll(rawPoll, 0, pindexBest->nHeight, true))
@@ -1360,7 +1333,7 @@ bool IsInitialBlockDownload()
     LOCK(cs_main);
     if (pindexBest == NULL || nBestHeight < Checkpoints::GetTotalBlocksEstimate())
         return true;
-    static int64_t nLastUpdate = 0;
+    static int64_t nLastUpdate;
     static CBlockIndex* pindexLastBest;
     if (pindexBest != pindexLastBest)
     {
@@ -1665,46 +1638,22 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
     }
 
     // ppcoin: clean up wallet after disconnecting coinstake
-    BOOST_FOREACH(CTransaction& tx, vtx)
+    BOOST_FOREACH(CTransaction& tx, vtx) {
         SyncWithWallets(tx, this, false, false);
 
-    // Process Ballots (we can wrap this in a function later.)
-    if (IsProofOfWork())
-    {
-        BallotStack ballots;
-        ballots.clear();
-        bool okBallots = true;
-        for (uint16_t i = 1; i < vtx[0].vout.size(); i++)
-        {
-
-
-            if (vtx[0].vout[i].scriptPubKey.IsVoteBallots())
-            {
-                vector<unsigned char> rawBallots(&*vtx[0].vout[i].scriptPubKey.begin()+1, &*vtx[0].vout[i].scriptPubKey.end());
-                if (!getBallots(rawBallots, ballots))
-                {
-                    okBallots = false;
-                    printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
-                }
-            }
-        }
-        if (okBallots && ballots.size() > 0U)
-        {
-            tallyBallots(ballots, BLOCK_PROOF_POW, true);
-        }
-    } else {
-        if (IsFlashStake(pindex->nTime))
+        // Process Ballots (we can wrap this in a function later.)
+        if (IsProofOfWork())
         {
             BallotStack ballots;
             ballots.clear();
             bool okBallots = true;
-            for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
+            for (uint16_t i = 1; i < vtx[0].vout.size(); i++)
             {
 
 
-                if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
+                if (vtx[0].vout[i].scriptPubKey.IsVoteBallots())
                 {
-                    vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
+                    vector<unsigned char> rawBallots(&*vtx[0].vout[i].scriptPubKey.begin()+1, &*vtx[0].vout[i].scriptPubKey.end());
                     if (!getBallots(rawBallots, ballots))
                     {
                         okBallots = false;
@@ -1712,35 +1661,59 @@ bool CBlock::DisconnectBlock(CTxDB& txdb, CBlockIndex* pindex)
                     }
                 }
             }
-            if (okBallots && ballots.size() > 0U)
+            if (okBallots && ballots.size() > 0)
             {
-                tallyBallots(ballots, BLOCK_PROOF_FPOS, true);
+                tallyBallots(ballots, BLOCK_PROOF_POW, true);
             }
         } else {
-            BallotStack ballots;
-            ballots.clear();
-            bool okBallots = true;
-            for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
+            if (IsFlashStake(pindex->nTime))
             {
-
-
-                if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
+                BallotStack ballots;
+                ballots.clear();
+                bool okBallots = true;
+                for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
                 {
-                    vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
-                    if (!getBallots(rawBallots, ballots))
+
+
+                    if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
                     {
-                        okBallots = false;
-                        printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
+                        vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
+                        if (!getBallots(rawBallots, ballots))
+                        {
+                            okBallots = false;
+                            printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
+                        }
                     }
                 }
-            }
-            if (okBallots && ballots.size() > 0U)
-            {
-                tallyBallots(ballots, BLOCK_PROOF_POS, true);
+                if (okBallots && ballots.size() > 0)
+                {
+                    tallyBallots(ballots, BLOCK_PROOF_FPOS, true);
+                }
+            } else {
+                BallotStack ballots;
+                ballots.clear();
+                bool okBallots = true;
+                for (uint16_t i = 2; i < vtx[1].vout.size(); i++)
+                {
+
+
+                    if (vtx[1].vout[i].scriptPubKey.IsVoteBallots())
+                    {
+                        vector<unsigned char> rawBallots(&*vtx[1].vout[i].scriptPubKey.begin()+1, &*vtx[1].vout[i].scriptPubKey.end());
+                        if (!getBallots(rawBallots, ballots))
+                        {
+                            okBallots = false;
+                            printf("ConnectBlock(): Unable to process ballots. Invalid structure.");
+                        }
+                    }
+                }
+                if (okBallots && ballots.size() > 0)
+                {
+                    tallyBallots(ballots, BLOCK_PROOF_POS, true);
+                }
             }
         }
     }
-
 
     return true;
 }
@@ -1923,7 +1896,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
     BOOST_FOREACH(CTransaction& tx, vtx)
     {
         SyncWithWallets(tx, this, true);
-        if (tx.vin.size() > 0U && tx.vout.size() > 0U && tx.vout[0].scriptPubKey.IsVotePoll())
+        if (tx.vin.size() > 0 && tx.vout.size() > 0 && tx.vout[0].scriptPubKey.IsVotePoll())
         {
             vector<unsigned char> rawPoll(&*tx.vout[0].scriptPubKey.begin()+1, &*tx.vout[0].scriptPubKey.end());
             processRawPoll(rawPoll, tx.GetHash(), pindex->nHeight, false, true);
@@ -1950,7 +1923,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                 }
             }
         }
-        if (okBallots && ballots.size() > 0U)
+        if (okBallots && ballots.size() > 0)
         {
             tallyBallots(ballots, BLOCK_PROOF_POW);
         }
@@ -1974,7 +1947,7 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                     }
                 }
             }
-            if (okBallots && ballots.size() > 0U)
+            if (okBallots && ballots.size() > 0)
             {
                 tallyBallots(ballots, BLOCK_PROOF_FPOS);
             }
@@ -1996,13 +1969,12 @@ bool CBlock::ConnectBlock(CTxDB& txdb, CBlockIndex* pindex, bool fJustCheck)
                     }
                 }
             }
-            if (okBallots && ballots.size() > 0U)
+            if (okBallots && ballots.size() > 0)
             {
                 tallyBallots(ballots, BLOCK_PROOF_POS);
             }
         }
     }
-
 
     return true;
 }
@@ -2371,22 +2343,22 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     txdb.WriteBlockIndex(CDiskBlockIndex(pindexNew));
     if (!txdb.TxnCommit())
         return false;
+
+    LOCK(cs_main);
+
+    // New best
+    if (pindexNew->nChainTrust > nBestChainTrust)
+        if (!SetBestChain(txdb, pindexNew))
+            return false;
+
+    if (pindexNew == pindexBest)
     {
-        LOCK(cs_main);
-
-        // New best
-        if (pindexNew->nChainTrust > nBestChainTrust)
-            if (!SetBestChain(txdb, pindexNew))
-                return false;
-
-        if (pindexNew == pindexBest)
-        {
-            // Notify UI to display prev block's coinbase if it was ours
-            static uint256 hashPrevBestCoinBase;
-            UpdatedTransaction(hashPrevBestCoinBase);
-            hashPrevBestCoinBase = vtx[0].GetHash();
-        }
+        // Notify UI to display prev block's coinbase if it was ours
+        static uint256 hashPrevBestCoinBase;
+        UpdatedTransaction(hashPrevBestCoinBase);
+        hashPrevBestCoinBase = vtx[0].GetHash();
     }
+
     return true;
 }
 
@@ -2437,7 +2409,7 @@ bool CBlock::CheckBlock(bool fCheckPOW, bool fCheckMerkleRoot, bool fCheckSig) c
     if (IsProofOfStake())
     {
         // Coinbase output should be empty if proof-of-stake block
-        if (vtx[0].vout.size() != 1U || !vtx[0].vout[0].IsEmpty())
+        if (vtx[0].vout.size() != 1 || !vtx[0].vout[0].IsEmpty())
             return DoS(100, error("CheckBlock() : coinbase output not empty for proof-of-stake block"));
 
         // Second transaction must be coinstake, the rest must not be
@@ -3328,7 +3300,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             (pfrom->nStartingHeight > (nBestHeight - 144)) &&
             (pfrom->nVersion < NOBLKS_VERSION_START ||
              pfrom->nVersion >= NOBLKS_VERSION_END) &&
-             (nAskedForBlocks < 1 || vNodes.size() <= 1U))
+             (nAskedForBlocks < 1 || vNodes.size() <= 1))
         {
             nAskedForBlocks++;
             pfrom->PushGetBlocks(pindexBest, uint256(0));
@@ -3382,7 +3354,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         // Don't want addr from older versions unless seeding
         if (pfrom->nVersion < CADDR_TIME_VERSION && addrman.size() > 1000)
             return true;
-        if (vAddr.size() > 1000U)
+        if (vAddr.size() > 1000)
         {
             pfrom->Misbehaving(20);
             return error("message addr size() = %" PRIszu "", vAddr.size());
@@ -3434,7 +3406,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
                 vAddrOk.push_back(addr);
         }
         addrman.Add(vAddrOk, pfrom->addr, 2 * 60 * 60);
-        if (vAddr.size() < 1000U)
+        if (vAddr.size() < 1000)
             pfrom->fGetAddr = false;
         if (pfrom->fOneShot)
             pfrom->fDisconnect = true;
@@ -3500,14 +3472,14 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             return error("message getdata size() = %" PRIszu "", vInv.size());
         }
 
-        if (fDebugNet || (vInv.size() != 1U))
+        if (fDebugNet || (vInv.size() != 1))
             printf("received getdata (%" PRIszu " invsz)\n", vInv.size());
 
         BOOST_FOREACH(const CInv& inv, vInv)
         {
             if (fShutdown)
                 return true;
-            if (fDebugNet || (vInv.size() == 1U))
+            if (fDebugNet || (vInv.size() == 1))
                 printf("received getdata for: %s\n", inv.ToString().c_str());
 
             if (inv.type == MSG_BLOCK)
@@ -3765,7 +3737,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             if (i == (MAX_INV_SZ - 1))
                     break;
         }
-        if (vInv.size() > 0U)
+        if (vInv.size() > 0)
             pfrom->PushMessage("inv", vInv);
     }
 
@@ -4090,7 +4062,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                 {
                     vAddr.push_back(addr);
                     // receiver rejects addr messages larger than 1000
-                    if (vAddr.size() >= 1000U)
+                    if (vAddr.size() >= 1000)
                     {
                         pto->PushMessage("addr", vAddr);
                         vAddr.clear();
@@ -4148,7 +4120,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                 if (pto->setInventoryKnown.insert(inv).second)
                 {
                     vInv.push_back(inv);
-                    if (vInv.size() >= 1000U)
+                    if (vInv.size() >= 1000)
                     {
                         pto->PushMessage("inv", vInv);
                         vInv.clear();
@@ -4175,7 +4147,7 @@ bool SendMessages(CNode* pto, bool fSendTrickle)
                 if (fDebugNet)
                     printf("sending getdata: %s\n", inv.ToString().c_str());
                 vGetData.push_back(inv);
-                if (vGetData.size() >= 1000U)
+                if (vGetData.size() >= 1000)
                 {
                     pto->PushMessage("getdata", vGetData);
                     vGetData.clear();

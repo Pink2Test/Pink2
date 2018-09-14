@@ -434,7 +434,7 @@ bool SecMsgDB::NextSmesg(leveldb::Iterator* it, std::string& prefix, unsigned ch
         it->Next();
     
     if (!(it->Valid()
-        && it->key().size() == 18U
+        && it->key().size() == 18
         && memcmp(it->key().data(), prefix.data(), 2) == 0))
         return false;
     
@@ -462,7 +462,7 @@ bool SecMsgDB::NextSmesgKey(leveldb::Iterator* it, std::string& prefix, unsigned
         it->Next();
     
     if (!(it->Valid()
-        && it->key().size() == 18U
+        && it->key().size() == 18
         && memcmp(it->key().data(), prefix.data(), 2) == 0))
         return false;
     
@@ -1149,7 +1149,7 @@ bool SecureMsgStart(bool fDontStart, bool fScanChain)
     if (SecureMsgReadIni() != 0)
         printf("Failed to read smsg.ini\n");
     
-    if (smsgAddresses.size() < 1U)
+    if (smsgAddresses.size() < 1)
     {
         printf("No address keys loaded.\n");
         if (SecureMsgAddWalletAddresses() != 0)
@@ -1223,7 +1223,7 @@ bool SecureMsgEnable()
         if (SecureMsgReadIni() != 0)
             printf("Failed to read smsg.ini\n");
         
-        if (smsgAddresses.size() < 1U)
+        if (smsgAddresses.size() < 1)
         {
             printf("No address keys loaded.\n");
             if (SecureMsgAddWalletAddresses() != 0)
@@ -1342,7 +1342,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         std::vector<unsigned char> vchData;
         vRecv >> vchData;
         
-        if (vchData.size() < 4U)
+        if (vchData.size() < 4)
         {
             pfrom->Misbehaving(1);
             return false; // not enough data received to be a valid smsgInv
@@ -1373,7 +1373,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
             return false;
         };
         
-        if (vchData.size() < 4U + nInvBuckets*16)
+        if (vchData.size() < 4 + nInvBuckets*16)
         {
             printf("Remote node did not send enough data.\n");
             pfrom->Misbehaving(1);
@@ -1455,7 +1455,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         
         // TODO: should include hash?
         memcpy(&vchDataOut[0], &nShowBuckets, 4);
-        if (vchDataOut.size() > 4U)
+        if (vchDataOut.size() > 4)
         {
             pfrom->PushMessage("smsgShow", vchDataOut);
         } else
@@ -1476,13 +1476,13 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         std::vector<unsigned char> vchData;
         vRecv >> vchData;
         
-        if (vchData.size() < 4U)
+        if (vchData.size() < 4)
             return false;
         
         uint32_t nBuckets;
-        memcpy(&nBuckets, &vchData[0], 4U);
+        memcpy(&nBuckets, &vchData[0], 4);
         
-        if (vchData.size() < 4U + nBuckets * 8)
+        if (vchData.size() < 4 + nBuckets * 8)
             return false;
         
         if (fDebugSmsg)
@@ -1509,7 +1509,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
             std::set<SecMsgToken>& tokenSet = (*itb).second.setTokens;
             
             try {
-                vchDataOut.resize(8U + 16U * tokenSet.size());
+                vchDataOut.resize(8 + 16 * tokenSet.size());
             } catch (std::exception& e) {
                 printf("vchDataOut.resize %" PRIszu " threw: %s.\n", 8 + 16 * tokenSet.size(), e.what());
                 continue;
@@ -1535,10 +1535,10 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         std::vector<unsigned char> vchData;
         vRecv >> vchData;
         
-        if (vchData.size() < 8U)
+        if (vchData.size() < 8)
             return false;
         
-        int n = (vchData.size() - 8U) / 16;
+        int n = (vchData.size() - 8) / 16;
         
         int64_t time;
         memcpy(&time, &vchData[0], 8);
@@ -1600,11 +1600,11 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
             p += 16;
         };
         
-        if (vchDataOut.size() > 8U)
+        if (vchDataOut.size() > 8)
         {
             if (fDebugSmsg)
             {
-                printf("Asking peer for  %" PRIszu " messages.\n", (vchDataOut.size() - 8U) / 16);
+                printf("Asking peer for  %" PRIszu " messages.\n", (vchDataOut.size() - 8) / 16);
                 printf("Locking bucket %" PRIu64 " for peer %u.\n", time, pfrom->smsgData.nPeerId);
             };
             smsgBuckets[time].nLockCount   = 3; // lock this bucket for at most 3 * SMSG_THREAD_DELAY seconds, unset when peer sends smsgMsg
@@ -1616,8 +1616,8 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
     {
         std::vector<unsigned char> vchData;
         vRecv >> vchData;
-
-        if (vchData.size() < 8U)
+        
+        if (vchData.size() < 8)
             return false;
         
         std::vector<unsigned char> vchOne;
@@ -1625,7 +1625,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         
         vchBunch.resize(4+8); // nmessages + bucketTime
         
-        int n = (vchData.size() - 8U) / 16;
+        int n = (vchData.size() - 8) / 16;
         
         int64_t time;
         uint32_t nBunch = 0;
@@ -1671,7 +1671,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
                 };
                 
                 if (nBunch >= 500
-                    || vchBunch.size() >= 96000U)
+                    || vchBunch.size() >= 96000)
                 {
                     if (fDebugSmsg)
                         printf("Break bunch %u, %" PRIszu ".\n", nBunch, vchBunch.size());
@@ -1707,7 +1707,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         vRecv >> vchData;
         
         
-        if (vchData.size() < 8U)
+        if (vchData.size() < 8)
         {
             printf("smsgMatch, not enough data %" PRIszu ".\n", vchData.size());
             pfrom->Misbehaving(1);
@@ -1761,7 +1761,7 @@ bool SecureMsgReceiveData(CNode* pfrom, std::string strCommand, CDataStream& vRe
         std::vector<unsigned char> vchData;
         vRecv >> vchData;
         
-        if (vchData.size() < 8U)
+        if (vchData.size() < 8)
         {
             printf("smsgIgnore, not enough data %" PRIszu ".\n", vchData.size());
             pfrom->Misbehaving(1);
@@ -1858,7 +1858,7 @@ bool SecureMsgSendData(CNode* pto, bool fSendTrickle)
                 try {
                     vchData.resize(vchData.size() + 16);
                 } catch (std::exception& e) {
-                    printf("vchData.resize %" PRIszu " threw: %s.\n", vchData.size() + 16U, e.what());
+                    printf("vchData.resize %" PRIszu " threw: %s.\n", vchData.size() + 16, e.what());
                     continue;
                 };
                 memcpy(p, &it->first, 8);
@@ -1871,7 +1871,7 @@ bool SecureMsgSendData(CNode* pto, bool fSendTrickle)
                 //    printf("Sending bucket %d, size %d \n", it->first, it->second.size());
             };
             
-            if (vchData.size() > 4U)
+            if (vchData.size() > 4)
             {
                 memcpy(&vchData[0], &nBucketsShown, 4);
                 if (fDebugSmsg)
@@ -2170,7 +2170,7 @@ bool SecureMsgScanBlockChain()
     };
     
     return true;
-}
+};
 
 bool SecureMsgScanBuckets()
 {
@@ -2830,7 +2830,7 @@ int SecureMsgReceive(CNode* pfrom, std::vector<unsigned char>& vchData)
     if (fDebugSmsg)
         printf("SecureMsgReceive().\n");
     
-    if (vchData.size() < 12U) // nBunch4 + timestamp8
+    if (vchData.size() < 12) // nBunch4 + timestamp8
     {
         printf("Error: not enough data.\n");
         return 1;

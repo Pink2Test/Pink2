@@ -82,7 +82,7 @@ bool CVotePoll::isActive()
 
 bool CVotePoll::haveParent()
 {
-    if (Option.size() < 1U)
+    if (Option.size() < 1)
         return false;
 
     vector<CPollOption>::iterator pIt = Option.begin();
@@ -93,7 +93,7 @@ bool CVotePoll::haveParent()
 }
 bool CVotePoll::parentEnded()
 {
-    if (Option.size() < 1U)
+    if (Option.size() < 1)
         return false;
 
     vector<CPollOption>::iterator pIt = Option.begin();
@@ -110,18 +110,18 @@ bool CVotePoll::hasEnded()
 
 bool CVotePoll::isComplete()
 {
-    if (Name.size() < 2U || Question.size() < 6U || End <= Start ||
-        ID == 0 || strAddress.size() < 34U)
+    if (Name.size() < 2 || Question.size() < 6 || End <= Start ||
+        ID == 0 || strAddress.size() < 34)
         return false;
 
-    if (Option.size() > 1U && nHeight > 0 && hash > 0)
+    if (Option.size() > 1 && nHeight > 0 && hash > 0)
         return true;
     if (isFund() && nHeight > 0 && hash > 0)
         return true;
 
-    if (isFund() && Option.size() > 0U && isLocal())
+    if (isFund() && Option.size() > 0 && isLocal())
         return true;
-    if (Option.size() > 1U && isLocal())
+    if (Option.size() > 1 && isLocal())
         return true;
 
     return false;
@@ -149,7 +149,7 @@ bool CVotePoll::isConsensus()
 {
     vector<CPollOption>::const_iterator pOpt = Option.begin();
 
-    if(pOpt == Option.end() || Option.size() != 3U || nTally.size() != 3U)
+    if(pOpt == Option.end() || Option.size() != 3 || nTally.size() != 3)
         return false;
 
     pOpt++; // Option 1 is overloaded to hold the Parent PollID if it's a claim poll;
@@ -428,13 +428,13 @@ bool CVote::validatePoll(const CVotePoll* poll, const bool& fromBlockchain)
 
     if (p->Start >= p->End)
         readyPoll = false;
-    if (p->strAddress.size() < 1U)
+    if (p->strAddress.size() < 1)
         readyPoll = false;
-    if (p->Question.size() < 1U)
+    if (p->Question.size() < 1)
         readyPoll = false;
-    if (p->Name.size() < 1U)
+    if (p->Name.size() < 1)
         readyPoll = false;
-    if (p->Option.size() < 1U)
+    if (p->Option.size() < 1)
         readyPoll = false;
     if (p->Start < (GetPollTime2(pindexBest->nTime) + 1))
         readyPoll = false;
@@ -641,7 +641,7 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
     
     // Let's catch this one early.
     // POLL_HEADER + SIZEOF(COMPRESSED_NEWPOLL) + Z_HEADER + Z_ADLER32
-    if (rawPoll.size() < POLL_HEADER_SIZE + 5U + 2U + 4U) { printf("[processRawPoll]: Illegal RawPoll.\n"); return false; }
+    if (rawPoll.size() < POLL_HEADER_SIZE + 5 + 2 + 4) { printf("[processRawPoll]: Illegal RawPoll.\n"); return false; }
     if (rawPoll[POLL_HEADER_SIZE] != 0x78) { printf("[processRawPoll]: Illegal Z_CMF."); return false; }
     if (rawPoll[POLL_HEADER_SIZE+1] != 0xda) { printf("[processRawPoll]: Rejecting unofficial Z_FLG.\n"); return false; }
 
@@ -668,7 +668,7 @@ bool processRawPoll(const vector<unsigned char>& rawPoll, const uint256& hash, c
     memcpy(&pollID, &*rIt, POLL_ID_SIZE);
     rIt += POLL_ID_SIZE;
 
-    if (vIndex && vIndex->pollCache.find(pollID) != vIndex->pollCache.end() && !(nBestHeight < GetNumBlocksOfPeers()))
+    if (vIndex->pollCache.find(pollID) != vIndex->pollCache.end())
         return false;
 
     if (!checkOnly)
@@ -881,7 +881,7 @@ bool isLocal()
 
 bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, const uint64_t startFrom)
 {
-    if (vIndex->ballotStack.size() < startFrom + 1U)
+    if (vIndex->ballotStack.size() < startFrom + 1)
         return false;
 
     PollStack *p = &vIndex->pollCache;
@@ -904,7 +904,7 @@ bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, 
                 count < 100 && p->at(vchID.ID).isActive())
         {
             IDPair.insert(IDPair.end(), vchID.begin(), vchID.end());
-            ballotPair |= first ? vchVote : (vchVote << 4);
+            ballotPair &= first ? vchVote : (vchVote << 4);
 
             if (!first)
             {
@@ -923,8 +923,8 @@ bool selectBallots(vector<unsigned char> &vchBallots, const BLOCK_PROOF_TYPE t, 
         vchBallots.insert(vchBallots.end(), ballotPair);
     }
 
-    if (count > 0)
-        vchBallots.insert(vchBallots.begin(), count);
+
+    vchBallots.insert(vchBallots.begin(), count);
     return (count > 0);
 }
 
@@ -950,7 +950,7 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
     uint8_t checkCount = 0;
     vector<unsigned char> workBallots(vchBallots.begin(), vchBallots.end());
 
-    if (vchBallots.size() > 5U)
+    if (vchBallots.size() > 5)
     {
         checkCount = *workBallots.begin();
         workBallots.erase(workBallots.begin());
@@ -961,18 +961,18 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
     // Simple, fast.
     while (true)
     {
-        if (workBallots.size() > 8U)
+        if (workBallots.size() > 8)
         {
-            holder = vector<unsigned char>(workBallots.begin(), workBallots.begin()+4);
-            ballot.OpSelection = (*(workBallots.begin()+8) & 0x0F);
+            holder = *(workBallots.begin(), workBallots.begin()+4);
+            ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
             ballot.PollID = holder.ID;
             if (stackBallots.find(ballot.PollID) == stackBallots.end())
             {
                 stackBallots.insert(make_pair(ballot.PollID, ballot));
             }
 
-            holder = vector<unsigned char>(workBallots.begin()+4, workBallots.begin()+8);
-            ballot.OpSelection = (*(workBallots.begin()+8) >> 4);
+            holder = *(workBallots.begin()+4, workBallots.begin()+8);
+            ballot.OpSelection = ((*workBallots.begin()+9) >> 4);
             ballot.PollID = holder.ID;
             if (stackBallots.find(ballot.PollID) == stackBallots.end())
             {
@@ -981,10 +981,10 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
 
             count += 2;
             workBallots.erase(workBallots.begin(), workBallots.begin()+9);
-        } else if (workBallots.size() == 5U)
+        } else if (workBallots.size() == 5)
         {
-            holder = vector<unsigned char>(workBallots.begin(), workBallots.begin()+4);
-            ballot.OpSelection = (*(workBallots.begin()+4) & 0x0F);
+            holder = *(workBallots.begin(), workBallots.begin()+4);
+            ballot.OpSelection = ((*workBallots.begin()+9) & 0x0F);
             ballot.PollID = holder.ID;
             if (stackBallots.find(ballot.PollID) == stackBallots.end())
             {
@@ -993,7 +993,7 @@ bool getBallots(const vector<unsigned char> &vchBallots, BallotStack &stackBallo
 
             count++;
             workBallots.erase(workBallots.begin(), workBallots.begin()+5);
-        } else if (workBallots.size() == 0U) {
+        } else if (workBallots.size() == 0) {
             if (count == checkCount)
                 return true;
             else

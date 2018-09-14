@@ -18,13 +18,13 @@ using namespace std;
 
 Value getsubsidy(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "getsubsidy [nTarget]\n"
             "Returns proof-of-work subsidy value for the specified value of target.");
     
     int nShowHeight;
-    if (params.size() > 0U)
+    if (params.size() > 0)
         nShowHeight = atoi(params[0].get_str());
     else
         nShowHeight = nBestHeight+1; // block currently being solved
@@ -34,7 +34,7 @@ Value getsubsidy(const Array& params, bool fHelp)
 
 Value getmininginfo(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "getmininginfo\n"
             "Returns an object containing mining-related information.");
@@ -70,7 +70,7 @@ Value getmininginfo(const Array& params, bool fHelp)
 
 Value getstakinginfo(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0U)
+    if (fHelp || params.size() != 0)
         throw runtime_error(
             "getstakinginfo\n"
             "Returns an object containing staking-related information.");
@@ -116,7 +116,7 @@ Value getstakinginfo(const Array& params, bool fHelp)
 
 Value getworkex(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2U)
+    if (fHelp || params.size() > 2)
         throw runtime_error(
             "getworkex [data, coinbase]\n"
             "If [data, coinbase] is not specified, returns extended work data.\n"
@@ -133,7 +133,7 @@ Value getworkex(const Array& params, bool fHelp)
     static vector<CBlock*> vNewBlock;
     static CReserveKey reservekey(pwalletMain);
 
-    if (params.size() == 0U)
+    if (params.size() == 0)
     {
         // Update block
         static unsigned int nTransactionsUpdatedLast;
@@ -209,10 +209,10 @@ Value getworkex(const Array& params, bool fHelp)
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
         vector<unsigned char> coinbase;
 
-        if(params.size() == 2U)
+        if(params.size() == 2)
             coinbase = ParseHex(params[1].get_str());
 
-        if (vchData.size() != 128U)
+        if (vchData.size() != 128)
             throw JSONRPCError(-8, "Invalid parameter");
 
         CBlock* pdata = (CBlock*)&vchData[0];
@@ -229,7 +229,7 @@ Value getworkex(const Array& params, bool fHelp)
         pblock->nTime = pdata->nTime;
         pblock->nNonce = pdata->nNonce;
 
-        if(coinbase.size() == 0U)
+        if(coinbase.size() == 0)
             pblock->vtx[0].vin[0].scriptSig = mapNewBlock[pdata->hashMerkleRoot].second;
         else
             CDataStream(coinbase, SER_NETWORK, PROTOCOL_VERSION) >> pblock->vtx[0]; // FIXME - HACK!
@@ -243,7 +243,7 @@ Value getworkex(const Array& params, bool fHelp)
 
 Value getwork(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "getwork [data]\n"
             "If [data] is not specified, returns formatted hash data to work on:\n"
@@ -264,7 +264,7 @@ Value getwork(const Array& params, bool fHelp)
     static vector<CBlock*> vNewBlock;
     static CReserveKey reservekey(pwalletMain);
 
-    if (params.size() == 0U)
+    if (params.size() == 0)
     {
         // Update block
         static unsigned int nTransactionsUpdatedLast;
@@ -331,7 +331,7 @@ Value getwork(const Array& params, bool fHelp)
     {
         // Parse parameters
         vector<unsigned char> vchData = ParseHex(params[0].get_str());
-        if (vchData.size() != 128U)
+        if (vchData.size() != 128)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter");
         CBlock* pdata = (CBlock*)&vchData[0];
 
@@ -356,7 +356,7 @@ Value getwork(const Array& params, bool fHelp)
 
 Value getblocktemplate(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1U)
+    if (fHelp || params.size() > 1)
         throw runtime_error(
             "getblocktemplate [params]\n"
             "Returns data needed to construct a block to work on:\n"
@@ -377,7 +377,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
             "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.");
 
     std::string strMode = "template";
-    if (params.size() > 0U)
+    if (params.size() > 0)
     {
         const Object& oparam = params[0].get_obj();
         const Value& modeval = find_value(oparam, "mode");
@@ -513,7 +513,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
 Value submitblock(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1U || params.size() > 2U)
+    if (fHelp || params.size() < 1 || params.size() > 2)
         throw runtime_error(
             "submitblock <hex data> [optional-params-obj]\n"
             "[optional-params-obj] parameter is currently ignored.\n"

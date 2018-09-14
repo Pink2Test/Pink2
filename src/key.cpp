@@ -271,7 +271,7 @@ bool CKey::SetSecret(const CSecret& vchSecret, bool fCompressed)
     pkey = EC_KEY_new_by_curve_name(NID_secp256k1);
     if (pkey == NULL)
         throw key_error("CKey::SetSecret() : EC_KEY_new_by_curve_name failed");
-    if (vchSecret.size() != 32U)
+    if (vchSecret.size() != 32)
         throw key_error("CKey::SetSecret() : secret must be 32 bytes");
     BIGNUM *bn = BN_bin2bn(&vchSecret[0],32,BN_new());
     if (bn == NULL)
@@ -321,7 +321,7 @@ bool CKey::SetPubKey(const CPubKey& vchPubKey)
     if (o2i_ECPublicKey(&pkey, &pbegin, vchPubKey.vchPubKey.size()))
     {
         fSet = true;
-        if (vchPubKey.vchPubKey.size() == 33U)
+        if (vchPubKey.vchPubKey.size() == 33)
             SetCompressedPubKey();
         return true;
     }
@@ -422,7 +422,7 @@ bool CKey::SignCompact(uint256 hash, std::vector<unsigned char>& vchSig)
 // (the signature is a valid signature of the given data for that key)
 bool CKey::SetCompactSignature(uint256 hash, const std::vector<unsigned char>& vchSig)
 {
-    if (vchSig.size() != 65U)
+    if (vchSig.size() != 65)
         return false;
     int nV = vchSig[0];
     if (nV<27 || nV>=35)

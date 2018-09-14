@@ -106,7 +106,7 @@ inline bool DecodeBase58(const char* psz, std::vector<unsigned char>& vchRet)
     std::vector<unsigned char> vchTmp = bn.getvch();
 
     // Trim off sign byte if present
-    if (vchTmp.size() >= 2U && vchTmp.end()[-1] == 0 && vchTmp.end()[-2] >= 0x80)
+    if (vchTmp.size() >= 2 && vchTmp.end()[-1] == 0 && vchTmp.end()[-2] >= 0x80)
         vchTmp.erase(vchTmp.end()-1);
 
     // Restore leading zeros
@@ -146,7 +146,7 @@ inline bool DecodeBase58Check(const char* psz, std::vector<unsigned char>& vchRe
 {
     if (!DecodeBase58(psz, vchRet))
         return false;
-    if (vchRet.size() < 4U)
+    if (vchRet.size() < 4)
     {
         vchRet.clear();
         return false;
@@ -404,7 +404,7 @@ class CBitcoinSecret : public CBase58Data
 public:
     void SetSecret(const CSecret& vchSecret, bool fCompressed)
     {
-        assert(vchSecret.size() == 32U);
+        assert(vchSecret.size() == 32);
         SetData(128 + (fTestNet ? CBitcoinAddress::PUBKEY_ADDRESS_TEST : CBitcoinAddress::PUBKEY_ADDRESS), &vchSecret[0], vchSecret.size());
         if (fCompressed)
             vchData.push_back(1);
@@ -415,7 +415,7 @@ public:
         CSecret vchSecret;
         vchSecret.resize(32);
         memcpy(&vchSecret[0], &vchData[0], 32);
-        fCompressedOut = vchData.size() == 33U;
+        fCompressedOut = vchData.size() == 33;
         return vchSecret;
     }
 
@@ -434,7 +434,7 @@ public:
             default:
                 return false;
         }
-        return fExpectTestNet == fTestNet && (vchData.size() == 32U || (vchData.size() == 33U && vchData[32] == 1));
+        return fExpectTestNet == fTestNet && (vchData.size() == 32 || (vchData.size() == 33 && vchData[32] == 1));
     }
 
     bool SetString(const char* pszSecret)

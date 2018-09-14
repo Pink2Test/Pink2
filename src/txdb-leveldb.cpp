@@ -319,7 +319,7 @@ static CBlockIndex *InsertBlockIndex(uint256 hash)
 
 bool CTxDB::LoadBlockIndex()
 {
-    if (mapBlockIndex.size() > 0U) {
+    if (mapBlockIndex.size() > 0) {
         // Already loaded once in this session. It can happen during migration
         // from BDB.
         return true;
