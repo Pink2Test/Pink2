@@ -49,7 +49,7 @@ void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
                 portOut = n;
         }
     }
-    if (in.size()>0 && in[0] == '[' && in[in.size()-1] == ']')
+    if (in.size()>0U && in[0] == '[' && in[in.size()-1] == ']')
         hostOut = in.substr(1, in.size()-2);
     else
         hostOut = in;
@@ -104,7 +104,7 @@ bool static LookupIntern(const char *pszName, std::vector<CNetAddr>& vIP, unsign
 
     freeaddrinfo(aiRes);
 
-    return (vIP.size() > 0);
+    return (vIP.size() > 0U);
 }
 
 bool LookupHost(const char *pszName, std::vector<CNetAddr>& vIP, unsigned int nMaxSolutions, bool fAllowLookup)
@@ -201,7 +201,7 @@ bool static Socks4(const CService &addrDest, SOCKET& hSocket)
 bool static Socks5(string strDest, int port, SOCKET& hSocket)
 {
     printf("SOCKS5 connecting %s\n", strDest.c_str());
-    if (strDest.size() > 255)
+    if (strDest.size() > 255U)
     {
         closesocket(hSocket);
         return error("Hostname too long");
@@ -547,17 +547,17 @@ static const unsigned char pchGarliCat[] = {0xFD,0x60,0xDB,0x4D,0xDD,0xB5};
 bool CNetAddr::SetSpecial(const std::string &strName)
 {
     if (strName.size()>6 && strName.substr(strName.size() - 6, 6) == ".onion") {
-        std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6).c_str());
-        if (vchAddr.size() != 16-sizeof(pchOnionCat))
+        std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 6U).c_str());
+        if (vchAddr.size() != 16U-sizeof(pchOnionCat))
             return false;
         memcpy(ip, pchOnionCat, sizeof(pchOnionCat));
-        for (unsigned int i=0; i<16-sizeof(pchOnionCat); i++)
+        for (unsigned int i=0; i<16U-sizeof(pchOnionCat); i++)
             ip[i + sizeof(pchOnionCat)] = vchAddr[i];
         return true;
     }
-    if (strName.size()>11 && strName.substr(strName.size() - 11, 11) == ".oc.b32.i2p") {
+    if (strName.size()>11U && strName.substr(strName.size() - 11, 11) == ".oc.b32.i2p") {
         std::vector<unsigned char> vchAddr = DecodeBase32(strName.substr(0, strName.size() - 11).c_str());
-        if (vchAddr.size() != 16-sizeof(pchGarliCat))
+        if (vchAddr.size() != 16U-sizeof(pchGarliCat))
             return false;
         memcpy(ip, pchOnionCat, sizeof(pchGarliCat));
         for (unsigned int i=0; i<16-sizeof(pchGarliCat); i++)

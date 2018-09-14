@@ -79,7 +79,7 @@ string AccountFromValue(const Value& value)
 
 Value getinfo(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 0U)
         throw runtime_error(
             "getinfo\n"
             "Returns an object containing various state info.");
@@ -121,14 +121,14 @@ Value getinfo(const Array& params, bool fHelp)
 
 Value getnewpubkey(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "getnewpubkey [account]\n"
             "Returns new public key for coinbase generation.");
 
     // Parse the account first so we don't generate a key if there's an error
     string strAccount;
-    if (params.size() > 0)
+    if (params.size() > 0U)
         strAccount = AccountFromValue(params[0]);
 
     if (!pwalletMain->IsLocked())
@@ -149,7 +149,7 @@ Value getnewpubkey(const Array& params, bool fHelp)
 
 Value getnewaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "getnewaddress [account]\n"
             "Returns a new Pinkcoin address for receiving payments.  "
@@ -158,7 +158,7 @@ Value getnewaddress(const Array& params, bool fHelp)
 
     // Parse the account first so we don't generate a key if there's an error
     string strAccount;
-    if (params.size() > 0)
+    if (params.size() > 0U)
         strAccount = AccountFromValue(params[0]);
 
     if (!pwalletMain->IsLocked())
@@ -216,7 +216,7 @@ CBitcoinAddress GetAccountAddress(string strAccount, bool bForceNew=false)
 
 Value getaccountaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "getaccountaddress <account>\n"
             "Returns the current Pinkcoin address for receiving payments to this account.");
@@ -235,7 +235,7 @@ Value getaccountaddress(const Array& params, bool fHelp)
 
 Value setaccount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1 || params.size() > 2U)
         throw runtime_error(
             "setaccount <pinkcoinaddress> <account>\n"
             "Sets the account associated with the given address.");
@@ -246,7 +246,7 @@ Value setaccount(const Array& params, bool fHelp)
 
 
     string strAccount;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         strAccount = AccountFromValue(params[1]);
 
     // Detect when changing the account of an address that is the 'unused current key' of another account:
@@ -265,7 +265,7 @@ Value setaccount(const Array& params, bool fHelp)
 
 Value getaccount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "getaccount <pinkcoinaddress>\n"
             "Returns the account associated with the given address.");
@@ -284,7 +284,7 @@ Value getaccount(const Array& params, bool fHelp)
 
 Value getaddressesbyaccount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "getaddressesbyaccount <account>\n"
             "Returns the list of addresses for the given account.");
@@ -305,7 +305,7 @@ Value getaddressesbyaccount(const Array& params, bool fHelp)
 
 Value sendtoaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 5)
+    if (fHelp || params.size() < 2U || params.size() > 5U)
         throw runtime_error(
             "sendtoaddress <pinkcoinaddress> <amount> [comment] [comment-to] [note]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
@@ -332,14 +332,14 @@ Value sendtoaddress(const Array& params, bool fHelp)
     std::string sNarr;
     
     // Wallet comments
-    if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
+    if (params.size() > 2U && params[2].type() != null_type && !params[2].get_str().empty())
         wtx.mapValue["comment"] = params[2].get_str();
-    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+    if (params.size() > 3U && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["to"] = params[3].get_str();
     // Note
-    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+    if (params.size() > 4U && params[4].type() != null_type && !params[4].get_str().empty())
         sNarr = params[4].get_str();
-    if (sNarr.length() > 24)
+    if (sNarr.length() > 24U)
         throw runtime_error("Note must be 24 characters or less.");
 
     string strError = pwalletMain->SendMoneyToDestination(address.Get(), nAmount, sNarr, wtx);
@@ -382,7 +382,7 @@ Value listaddressgroupings(const Array& params, bool fHelp)
 
 Value signmessage(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 2)
+    if (fHelp || params.size() != 2U)
         throw runtime_error(
             "signmessage <pinkcoinaddress> <message>\n"
             "Sign a message with the private key of an address");
@@ -417,7 +417,7 @@ Value signmessage(const Array& params, bool fHelp)
 
 Value verifymessage(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 3)
+    if (fHelp || params.size() != 3U)
         throw runtime_error(
             "verifymessage <pinkcoinaddress> <signature> <message>\n"
             "Verify a signed message");
@@ -454,7 +454,7 @@ Value verifymessage(const Array& params, bool fHelp)
 
 Value getreceivedbyaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1U || params.size() > 2U)
         throw runtime_error(
             "getreceivedbyaddress <pinkcoinaddress> [minconf=1]\n"
             "Returns the total amount received by <pinkcoinaddress> in transactions with at least [minconf] confirmations.");
@@ -470,7 +470,7 @@ Value getreceivedbyaddress(const Array& params, bool fHelp)
 
     // Minimum confirmations
     int nMinDepth = 1;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         nMinDepth = params[1].get_int();
 
     // Tally
@@ -504,7 +504,7 @@ void GetAccountAddresses(string strAccount, set<CTxDestination>& setAddress)
 
 Value getreceivedbyaccount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1U || params.size() > 2U)
         throw runtime_error(
             "getreceivedbyaccount <account> [minconf=1]\n"
             "Returns the total amount received by addresses with <account> in transactions with at least [minconf] confirmations.");
@@ -513,7 +513,7 @@ Value getreceivedbyaccount(const Array& params, bool fHelp)
 
     // Minimum confirmations
     int nMinDepth = 1;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         nMinDepth = params[1].get_int();
 
     // Get the set of pub keys assigned to account
@@ -576,17 +576,17 @@ int64_t GetAccountBalance(const string& strAccount, int nMinDepth)
 
 Value getbalance(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp || params.size() > 2U)
         throw runtime_error(
             "getbalance [account] [minconf=1]\n"
             "If [account] is not specified, returns the server's total available balance.\n"
             "If [account] is specified, returns the balance in the account.");
 
-    if (params.size() == 0)
+    if (params.size() == 0U)
         return  ValueFromAmount(pwalletMain->GetBalance());
 
     int nMinDepth = 1;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         nMinDepth = params[1].get_int();
 
     if (params[0].get_str() == "*") {
@@ -629,7 +629,7 @@ Value getbalance(const Array& params, bool fHelp)
 
 Value movecmd(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 5)
+    if (fHelp || params.size() < 3U || params.size() > 5U)
         throw runtime_error(
             "move <fromaccount> <toaccount> <amount> [minconf=1] [comment]\n"
             "Move from one account in your wallet to another.");
@@ -640,11 +640,11 @@ Value movecmd(const Array& params, bool fHelp)
     string strTo = AccountFromValue(params[1]);
     int64_t nAmount = AmountFromValue(params[2]);
 
-    if (params.size() > 3)
+    if (params.size() > 3U)
         // unused parameter, used to be nMinDepth, keep type-checking it though
         (void)params[3].get_int();
     string strComment;
-    if (params.size() > 4)
+    if (params.size() > 4U)
         strComment = params[4].get_str();
 
     CWalletDB walletdb(pwalletMain->strWalletFile);
@@ -682,7 +682,7 @@ Value movecmd(const Array& params, bool fHelp)
 
 Value sendfrom(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 3 || params.size() > 7)
+    if (fHelp || params.size() < 3U || params.size() > 7U)
         throw runtime_error(
             "sendfrom <fromaccount> <topinkcoinaddress> <amount> [minconf=1] [note] [comment] [comment-to]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
@@ -695,22 +695,22 @@ Value sendfrom(const Array& params, bool fHelp)
     int64_t nAmount = AmountFromValue(params[2]);
 
     int nMinDepth = 1;
-    if (params.size() > 3)
+    if (params.size() > 3U)
         nMinDepth = params[3].get_int();
 
     CWalletTx wtx;
     wtx.strFromAccount = strAccount;
     
     std::string sNarr;
-    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+    if (params.size() > 4U && params[4].type() != null_type && !params[4].get_str().empty())
         sNarr = params[4].get_str();
     
     if (sNarr.length() > 24)
         throw runtime_error("Note must be 24 characters or less.");
     
-    if (params.size() > 5 && params[5].type() != null_type && !params[5].get_str().empty())
+    if (params.size() > 5U && params[5].type() != null_type && !params[5].get_str().empty())
         wtx.mapValue["comment"] = params[5].get_str();
-    if (params.size() > 6 && params[6].type() != null_type && !params[6].get_str().empty())
+    if (params.size() > 6U && params[6].type() != null_type && !params[6].get_str().empty())
         wtx.mapValue["to"]      = params[6].get_str();
 
     EnsureWalletIsUnlocked();
@@ -731,7 +731,7 @@ Value sendfrom(const Array& params, bool fHelp)
 
 Value sendmany(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 4)
+    if (fHelp || params.size() < 2U || params.size() > 4U)
         throw runtime_error(
             "sendmany <fromaccount> {address:amount,...} [minconf=1] [comment]\n"
             "amounts are double-precision floating point numbers"
@@ -740,12 +740,12 @@ Value sendmany(const Array& params, bool fHelp)
     string strAccount = AccountFromValue(params[0]);
     Object sendTo = params[1].get_obj();
     int nMinDepth = 1;
-    if (params.size() > 2)
+    if (params.size() > 2U)
         nMinDepth = params[2].get_int();
 
     CWalletTx wtx;
     wtx.strFromAccount = strAccount;
-    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+    if (params.size() > 3U && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["comment"] = params[3].get_str();
 
     set<CBitcoinAddress> setAddress;
@@ -797,7 +797,7 @@ Value sendmany(const Array& params, bool fHelp)
 
 Value addmultisigaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 3)
+    if (fHelp || params.size() < 2U || params.size() > 3U)
     {
         string msg = "addmultisigaddress <nrequired> <'[\"key\",\"key\"]'> [account]\n"
             "Add a nrequired-to-sign multisignature address to the wallet\"\n"
@@ -809,7 +809,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
     int nRequired = params[0].get_int();
     const Array& keys = params[1].get_array();
     string strAccount;
-    if (params.size() > 2)
+    if (params.size() > 2U)
         strAccount = AccountFromValue(params[2]);
 
     // Gather public keys
@@ -867,7 +867,7 @@ Value addmultisigaddress(const Array& params, bool fHelp)
 
 Value addredeemscript(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1U || params.size() > 2U)
     {
         string msg = "addredeemscript <redeemScript> [account]\n"
             "Add a P2SH address with a specified redeemScript to the wallet.\n"
@@ -876,7 +876,7 @@ Value addredeemscript(const Array& params, bool fHelp)
     }
 
     string strAccount;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         strAccount = AccountFromValue(params[1]);
 
     // Construct using pay-to-script-hash:
@@ -905,12 +905,12 @@ Value ListReceived(const Array& params, bool fByAccounts)
 {
     // Minimum confirmations
     int nMinDepth = 1;
-    if (params.size() > 0)
+    if (params.size() > 0U)
         nMinDepth = params[0].get_int();
 
     // Whether to include empty accounts
     bool fIncludeEmpty = false;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         fIncludeEmpty = params[1].get_bool();
 
     // Tally
@@ -993,7 +993,7 @@ Value ListReceived(const Array& params, bool fByAccounts)
 
 Value listreceivedbyaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp || params.size() > 2U)
         throw runtime_error(
             "listreceivedbyaddress [minconf=1] [includeempty=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
@@ -1009,7 +1009,7 @@ Value listreceivedbyaddress(const Array& params, bool fHelp)
 
 Value listreceivedbyaccount(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp || params.size() > 2U)
         throw runtime_error(
             "listreceivedbyaccount [minconf=1] [includeempty=false]\n"
             "[minconf] is the minimum number of confirmations before payments are included.\n"
@@ -1060,7 +1060,7 @@ void ListTransactions(const CWalletTx& wtx, const string& strAccount, int nMinDe
     }
 
     // Received
-    if (listReceived.size() > 0 && wtx.GetDepthInMainChain() >= nMinDepth)
+    if (listReceived.size() > 0U && wtx.GetDepthInMainChain() >= nMinDepth)
     {
         bool stop = false;
         BOOST_FOREACH(const PAIRTYPE(CTxDestination, int64_t)& r, listReceived)
@@ -1122,19 +1122,19 @@ void AcentryToJSON(const CAccountingentry& acentry, const string& strAccount, Ar
 
 Value listtransactions(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 3)
+    if (fHelp || params.size() > 3U)
         throw runtime_error(
             "listtransactions [account] [count=10] [from=0]\n"
             "Returns up to [count] most recent transactions skipping the first [from] transactions for account [account].");
 
     string strAccount = "*";
-    if (params.size() > 0)
+    if (params.size() > 0U)
         strAccount = params[0].get_str();
     int nCount = 10;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         nCount = params[1].get_int();
     int nFrom = 0;
-    if (params.size() > 2)
+    if (params.size() > 2U)
         nFrom = params[2].get_int();
 
     if (nCount < 0)
@@ -1180,7 +1180,7 @@ Value listtransactions(const Array& params, bool fHelp)
 
 Value listaccounts(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 0)
+    if (fHelp || params.size() > 0U)
         throw runtime_error(
             "listaccounts [minconf=1]\n"
             "Returns Object that has account names as keys, account balances as values.");
@@ -1188,7 +1188,7 @@ Value listaccounts(const Array& params, bool fHelp)
 //    accountingDeprecationCheck();
 
 //    int nMinDepth = 1;
-//   if (params.size() > 0)
+//   if (params.size() > 0U)
 //        nMinDepth = params[0].get_int();
 
     map<string, CBitcoinAddress> mapAccountAddresses;
@@ -1244,7 +1244,7 @@ Value listsinceblock(const Array& params, bool fHelp)
     CBlockIndex *pindex = NULL;
     int target_confirms = 1;
 
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
         uint256 blockId = 0;
 
@@ -1252,7 +1252,7 @@ Value listsinceblock(const Array& params, bool fHelp)
         pindex = CBlockLocator(blockId).GetBlockIndex();
     }
 
-    if (params.size() > 1)
+    if (params.size() > 1U)
     {
         target_confirms = params[1].get_int();
 
@@ -1299,7 +1299,7 @@ Value listsinceblock(const Array& params, bool fHelp)
 
 Value gettransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "gettransaction <txid>\n"
             "Get detailed information about <txid>");
@@ -1363,7 +1363,7 @@ Value gettransaction(const Array& params, bool fHelp)
 
 Value backupwallet(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "backupwallet <destination>\n"
             "Safely copies wallet.dat to destination, which can be a directory or a path with filename.");
@@ -1378,14 +1378,14 @@ Value backupwallet(const Array& params, bool fHelp)
 
 Value keypoolrefill(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "keypoolrefill [new-size]\n"
             "Fills the keypool."
             + HelpRequiringPassphrase());
 
     unsigned int nSize = max(GetArg("-keypool", 100), (int64_t)0);
-    if (params.size() > 0) {
+    if (params.size() > 0U) {
         if (params[0].get_int() < 0)
             throw JSONRPCError(RPC_INVALID_PARAMETER, "Invalid parameter, expected valid size");
         nSize = (unsigned int) params[0].get_int();
@@ -1456,7 +1456,7 @@ void ThreadCleanWalletPassphrase(void* parg)
 
 Value walletpassphrase(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() < 2 || params.size() > 3))
+    if (pwalletMain->IsCrypted() && (fHelp || params.size() < 2U || params.size() > 3U))
         throw runtime_error(
             "walletpassphrase <passphrase> <timeout> [stakingonly]\n"
             "Stores the wallet decryption key in memory for <timeout> seconds.\n"
@@ -1480,7 +1480,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
     // Alternately, find a way to make params[0] mlock()'d to begin with.
     strWalletPass = params[0].get_str().c_str();
 
-    if (strWalletPass.length() > 0)
+    if (strWalletPass.length() > 0U)
     {
         if (!pwalletMain->Unlock(strWalletPass))
             throw JSONRPCError(RPC_WALLET_PASSPHRASE_INCORRECT, "Error: The wallet passphrase entered was incorrect.");
@@ -1495,7 +1495,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
     NewThread(ThreadCleanWalletPassphrase, pnSleepTime);
 
     // ppcoin: if user OS account compromised prevent trivial sendmoney commands
-    if (params.size() > 2)
+    if (params.size() > 2U)
         fWalletUnlockStakingOnly = params[2].get_bool();
     else
         fWalletUnlockStakingOnly = false;
@@ -1506,7 +1506,7 @@ Value walletpassphrase(const Array& params, bool fHelp)
 
 Value walletpassphrasechange(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() != 2))
+    if (pwalletMain->IsCrypted() && (fHelp || params.size() != 2U))
         throw runtime_error(
             "walletpassphrasechange <oldpassphrase> <newpassphrase>\n"
             "Changes the wallet passphrase from <oldpassphrase> to <newpassphrase>.");
@@ -1539,7 +1539,7 @@ Value walletpassphrasechange(const Array& params, bool fHelp)
 
 Value walletlock(const Array& params, bool fHelp)
 {
-    if (pwalletMain->IsCrypted() && (fHelp || params.size() != 0))
+    if (pwalletMain->IsCrypted() && (fHelp || params.size() != 0U))
         throw runtime_error(
             "walletlock\n"
             "Removes the wallet encryption key from memory, locking the wallet.\n"
@@ -1562,7 +1562,7 @@ Value walletlock(const Array& params, bool fHelp)
 
 Value encryptwallet(const Array& params, bool fHelp)
 {
-    if (!pwalletMain->IsCrypted() && (fHelp || params.size() != 1))
+    if (!pwalletMain->IsCrypted() && (fHelp || params.size() != 1U))
         throw runtime_error(
             "encryptwallet <passphrase>\n"
             "Encrypts the wallet with <passphrase>.");
@@ -1642,7 +1642,7 @@ public:
 
 Value validateaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "validateaddress <pinkcoinaddress>\n"
             "Return information about <pinkcoinaddress>.");
@@ -1671,7 +1671,7 @@ Value validateaddress(const Array& params, bool fHelp)
 
 Value validatepubkey(const Array& params, bool fHelp)
 {
-    if (fHelp || !params.size() || params.size() > 2)
+    if (fHelp || !params.size() || params.size() > 2U)
         throw runtime_error(
             "validatepubkey <pinkcoinpubkey>\n"
             "Return information about <pinkcoinpubkey>.");
@@ -1709,7 +1709,7 @@ Value validatepubkey(const Array& params, bool fHelp)
 // ppcoin: reserve balance from being staked for network protection
 Value reservebalance(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 2)
+    if (fHelp || params.size() > 2U)
         throw runtime_error(
             "reservebalance [<reserve> [amount]]\n"
             "<reserve> is true or false to turn balance reserve on or off.\n"
@@ -1717,12 +1717,12 @@ Value reservebalance(const Array& params, bool fHelp)
             "Set reserve amount not participating in network protection.\n"
             "If no parameters provided current setting is printed.\n");
 
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
         bool fReserve = params[0].get_bool();
         if (fReserve)
         {
-            if (params.size() == 1)
+            if (params.size() == 1U)
                 throw runtime_error("must provide amount to reserve balance.\n");
             int64_t nAmount = AmountFromValue(params[1]);
             nAmount = (nAmount / CENT) * CENT;  // round to cent
@@ -1732,7 +1732,7 @@ Value reservebalance(const Array& params, bool fHelp)
         }
         else
         {
-            if (params.size() > 1)
+            if (params.size() > 1U)
                 throw runtime_error("cannot specify amount to turn off reserve.\n");
             nReserveBalance = 0;
         }
@@ -1749,16 +1749,16 @@ Value reservebalance(const Array& params, bool fHelp)
 // Stakes of coins smaller than this will be combined with other chunks in the wallet.
 Value combinethreshold(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "combinethreshold [amount]\n"
             "<amount> is a real and a whole number.\n"
             "Set minimum coin chunk amount before combining stakes.\n"
             "If no parameters provided current setting is printed.\n");
 
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
-       if (params.size() == 1)
+       if (params.size() == 1U)
         {
            int64_t nAmount = params[0].get_int64();
            if (nAmount < 100)
@@ -1778,16 +1778,16 @@ Value combinethreshold(const Array& params, bool fHelp)
 // Stakes of coins larger than this will be split evenly into two chunks in the wallet.
 Value splitthreshold(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "combinethreshold [amount]\n"
             "<amount> is a real and a whole number.\n"
             "Set maximum coin chunk amount before splitting stakes.\n"
             "If no parameters provided current setting is printed.\n");
 
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
-       if (params.size() == 1)
+       if (params.size() == 1U)
         {
            int64_t nAmount = params[0].get_int64();
            if (nAmount > 1000000)
@@ -1806,7 +1806,7 @@ Value splitthreshold(const Array& params, bool fHelp)
 // ppcoin: check wallet integrity
 Value checkwallet(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 0)
+    if (fHelp || params.size() > 0U)
         throw runtime_error(
             "checkwallet\n"
             "Check wallet for integrity.\n");
@@ -1830,7 +1830,7 @@ Value checkwallet(const Array& params, bool fHelp)
 // ppcoin: repair wallet
 Value repairwallet(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 0)
+    if (fHelp || params.size() > 0U)
         throw runtime_error(
             "repairwallet\n"
             "Repair wallet if checkwallet reports any problem.\n");
@@ -1853,7 +1853,7 @@ Value repairwallet(const Array& params, bool fHelp)
 // NovaCoin: resend unconfirmed wallet transactions
 Value resendtx(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "resendtx\n"
             "Re-send unconfirmed transactions.\n"
@@ -1867,14 +1867,14 @@ Value resendtx(const Array& params, bool fHelp)
 // ppcoin: make a public-private key pair
 Value makekeypair(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "makekeypair [prefix]\n"
             "Make a public/private key pair.\n"
             "[prefix] is optional preferred prefix for the public key.\n");
 
     string strPrefix = "";
-    if (params.size() > 0)
+    if (params.size() > 0U)
         strPrefix = params[0].get_str();
  
     CKey key;
@@ -1891,7 +1891,7 @@ Value makekeypair(const Array& params, bool fHelp)
 
 Value getnewstealthaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "getnewstealthaddress [label]\n"
             "Returns a new Pinkcoin stealth address for receiving payments anonymously.  ");
@@ -1900,7 +1900,7 @@ Value getnewstealthaddress(const Array& params, bool fHelp)
         throw runtime_error("Failed: Wallet must be unlocked.");
     
     std::string sLabel;
-    if (params.size() > 0)
+    if (params.size() > 0U)
         sLabel = params[0].get_str();
     
     CStealthAddress sxAddr;
@@ -1916,14 +1916,14 @@ Value getnewstealthaddress(const Array& params, bool fHelp)
 
 Value liststealthaddresses(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "liststealthaddresses [show_secrets=0]\n"
             "List owned stealth addresses.");
     
     bool fShowSecrets = false;
     
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
         std::string str = params[0].get_str();
         
@@ -1944,7 +1944,7 @@ Value liststealthaddresses(const Array& params, bool fHelp)
     std::set<CStealthAddress>::iterator it;
     for (it = pwalletMain->stealthAddresses.begin(); it != pwalletMain->stealthAddresses.end(); ++it)
     {
-        if (it->scan_secret.size() < 1)
+        if (it->scan_secret.size() < 1U)
             continue; // stealth address is not owned
         
         Object obj;
@@ -1970,7 +1970,7 @@ Value liststealthaddresses(const Array& params, bool fHelp)
 
 Value importstealthaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2)
+    if (fHelp || params.size() < 2U)
         throw runtime_error(
             "importstealthaddress <scan_secret> <spend_secret> [label]\n"
             "Import an owned stealth addresses.");
@@ -1980,7 +1980,7 @@ Value importstealthaddress(const Array& params, bool fHelp)
     std::string sLabel;
     
     
-    if (params.size() > 2)
+    if (params.size() > 2U)
     {
         sLabel = params[2].get_str();
     };
@@ -2006,9 +2006,9 @@ Value importstealthaddress(const Array& params, bool fHelp)
             throw runtime_error("Could not decode spend secret as hex or base58.");
     };
     
-    if (vchScanSecret.size() != 32)
+    if (vchScanSecret.size() != 32U)
         throw runtime_error("Scan secret is not 32 bytes.");
-    if (vchSpendSecret.size() != 32)
+    if (vchSpendSecret.size() != 32U)
         throw runtime_error("Spend secret is not 32 bytes.");
     
     
@@ -2044,7 +2044,7 @@ Value importstealthaddress(const Array& params, bool fHelp)
         if (sxAddrIt.scan_pubkey == sxAddr.scan_pubkey
             && sxAddrIt.spend_pubkey == sxAddr.spend_pubkey)
         {
-            if (sxAddrIt.scan_secret.size() < 1)
+            if (sxAddrIt.scan_secret.size() < 1U)
             {
                 sxAddrIt.scan_secret = sxAddr.scan_secret;
                 sxAddrIt.spend_secret = sxAddr.spend_secret;
@@ -2076,7 +2076,7 @@ Value importstealthaddress(const Array& params, bool fHelp)
 
 Value sendtostealthaddress(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 2 || params.size() > 5)
+    if (fHelp || params.size() < 2U || params.size() > 5U)
         throw runtime_error(
             "sendtostealthaddress <stealth_address> <amount> [comment] [comment-to] [note]\n"
             "<amount> is a real and is rounded to the nearest 0.000001"
@@ -2101,12 +2101,12 @@ Value sendtostealthaddress(const Array& params, bool fHelp)
     std::string sNarr;
 
     // Comments
-    if (params.size() > 2 && params[2].type() != null_type && !params[2].get_str().empty())
+    if (params.size() > 2U && params[2].type() != null_type && !params[2].get_str().empty())
         wtx.mapValue["comment"] = params[2].get_str();
-    if (params.size() > 3 && params[3].type() != null_type && !params[3].get_str().empty())
+    if (params.size() > 3U && params[3].type() != null_type && !params[3].get_str().empty())
         wtx.mapValue["to"] = params[3].get_str();
     // Note
-    if (params.size() > 4 && params[4].type() != null_type && !params[4].get_str().empty())
+    if (params.size() > 4U && params[4].type() != null_type && !params[4].get_str().empty())
         sNarr = params[4].get_str();
     if (sNarr.length() > 24)
         throw runtime_error("Note must be 24 characters or less.");
@@ -2124,7 +2124,7 @@ Value sendtostealthaddress(const Array& params, bool fHelp)
 
 Value clearwallettransactions(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 0)
+    if (fHelp || params.size() > 0U)
         throw runtime_error(
             "clearwallettransactions \n"
             "delete all transactions from wallet - reload with scanforalltxns and scanforstealthtxns (if you use them)\n"
@@ -2243,7 +2243,7 @@ Value clearwallettransactions(const Array& params, bool fHelp)
 
     result.push_back(Pair("Information", "Reload with scanforalltxns and scanforstealthtxns (if you use them)."));
 
-    if (vWarning.size() > 0)
+    if (vWarning.size() > 0U)
         result.push_back(Pair("Warnings", to_string(vWarning.size())));
 
     for (uint32_t i = 0; i < vWarning.size() ; i++)
@@ -2258,7 +2258,7 @@ Value clearwallettransactions(const Array& params, bool fHelp)
 
 Value scanforalltxns(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "scanforalltxns [fromHeight]\n"
             "Scan blockchain for owned transactions.");
@@ -2269,7 +2269,7 @@ Value scanforalltxns(const Array& params, bool fHelp)
     CBlockIndex *pindex = pindexGenesisBlock;
     
     
-    if (params.size() > 0)
+    if (params.size() > 0U)
         nFromHeight = stoul(params[0].get_str());
     
     
@@ -2309,7 +2309,7 @@ Value scanforalltxns(const Array& params, bool fHelp)
 
 Value scanforstealthtxns(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 1)
+    if (fHelp || params.size() > 1U)
         throw runtime_error(
             "scanforstealthtxns [fromHeight]\n"
             "Scan blockchain for owned stealth transactions.");
@@ -2322,7 +2322,7 @@ Value scanforstealthtxns(const Array& params, bool fHelp)
     CBlockIndex *pindex = pindexGenesisBlock;
     
     
-    if (params.size() > 0)
+    if (params.size() > 0U)
         nFromHeight = params[0].get_int();
     
     
@@ -2377,7 +2377,7 @@ Value scanforstealthtxns(const Array& params, bool fHelp)
 
 Value getwalletinfo(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 0U)
         throw runtime_error(
             "getwalletinfo\n"
             "Returns an object containing various wallet state info.\n"
@@ -2407,15 +2407,15 @@ Value getwalletinfo(const Array& params, bool fHelp)
 Value setstakesplitthreshold(const Array& params, bool fHelp)
 {
 
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "setstakesplitthreshold <1 - 1000000>\n"
             "This will set the output size of your stakes to never be below this number\n"
             "Note: This function is depreciated in favor of splitthreshold [amount]\n");
 
-    if (params.size() > 0)
+    if (params.size() > 0U)
     {
-       if (params.size() == 1)
+       if (params.size() == 1U)
         {
            int64_t nAmount = AmountFromValue(params[0]);
            if (nAmount > 1000000)
@@ -2460,7 +2460,7 @@ Value setstakesplitthreshold(const Array& params, bool fHelp)
 // presstab HyperStake
 Value getstakesplitthreshold(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 0U)
         throw runtime_error(
             "getstakesplitthreshold\n"
             "Returns the set splitstakethreshold\n"
@@ -2478,7 +2478,7 @@ Value getstakesplitthreshold(const Array& params, bool fHelp)
 
 Value addstakeout(const Array &params, bool fHelp)
 {
-    if (fHelp || params.size() != 3)
+    if (fHelp || params.size() != 3U)
         throw runtime_error(
             "addstakeout <name> <address> <percentage>\n"
             "Creates a rule to send a portion of your stakes to another address.\n"
@@ -2577,7 +2577,7 @@ Value addstakeout(const Array &params, bool fHelp)
 
 Value delstakeout(const Array &params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "delstakeout <address>\n"
             "Deletes stakeout address from stake database.\n");
@@ -2610,7 +2610,7 @@ Value delstakeout(const Array &params, bool fHelp)
 
 Value liststakeout(const Array &params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 0U)
         throw runtime_error(
             "liststakeout\n"
             "Returns the current Stakeout entries in stake database.\n");
@@ -2643,7 +2643,7 @@ Value liststakeout(const Array &params, bool fHelp)
 
 Value getstakeoutinfo(const Array &params, bool fHelp)
 {
-    if (fHelp || params.size() != 0)
+    if (fHelp || params.size() != 0U)
         throw runtime_error(
             "getstakeoutinfo\n"
             "Returns your aggregated Stakeout Data information\n");

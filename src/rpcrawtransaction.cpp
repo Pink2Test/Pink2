@@ -104,7 +104,7 @@ void TxToJSON(const CTransaction& tx, const uint256 hashBlock, Object& entry)
 
 Value getrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 2)
+    if (fHelp || params.size() < 1U || params.size() > 2U)
         throw runtime_error(
             "getrawtransaction <txid> [verbose=0]\n"
             "If verbose=0, returns a string that is\n"
@@ -116,7 +116,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
     hash.SetHex(params[0].get_str());
 
     bool fVerbose = false;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         fVerbose = (params[1].get_int() != 0);
 
     CTransaction tx;
@@ -139,7 +139,7 @@ Value getrawtransaction(const Array& params, bool fHelp)
 
 Value listunspent(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() > 3)
+    if (fHelp || params.size() > 3U)
         throw runtime_error(
             "listunspent [minconf=1] [maxconf=9999999]  [\"address\",...]\n"
             "Returns array of unspent transaction outputs\n"
@@ -151,15 +151,15 @@ Value listunspent(const Array& params, bool fHelp)
     RPCTypeCheck(params, list_of(int_type)(int_type)(array_type));
 
     int nMinDepth = 1;
-    if (params.size() > 0)
+    if (params.size() > 0U)
         nMinDepth = params[0].get_int();
 
     int nMaxDepth = 9999999;
-    if (params.size() > 1)
+    if (params.size() > 1U)
         nMaxDepth = params[1].get_int();
 
     set<CBitcoinAddress> setAddress;
-    if (params.size() > 2)
+    if (params.size() > 2U)
     {
         Array inputs = params[2].get_array();
         BOOST_FOREACH(Value& input, inputs)
@@ -290,7 +290,7 @@ Value createrawtransaction(const Array& params, bool fHelp)
 
 Value decoderawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "decoderawtransaction <hex string>\n"
             "Return a JSON object representing the serialized, hex-encoded transaction.");
@@ -315,7 +315,7 @@ Value decoderawtransaction(const Array& params, bool fHelp)
 
 Value decodescript(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() != 1)
+    if (fHelp || params.size() != 1U)
         throw runtime_error(
             "decodescript <hex string>\n"
             "Decode a hex-encoded script.");
@@ -324,7 +324,7 @@ Value decodescript(const Array& params, bool fHelp)
 
     Object r;
     CScript script;
-    if (params[0].get_str().size() > 0){
+    if (params[0].get_str().size() > 0U){
         vector<unsigned char> scriptData(ParseHexV(params[0], "argument"));
         script = CScript(scriptData.begin(), scriptData.end());
     } else {
@@ -338,7 +338,7 @@ Value decodescript(const Array& params, bool fHelp)
 
 Value signrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 4)
+    if (fHelp || params.size() < 1U || params.size() > 4U)
         throw runtime_error(
             "signrawtransaction <hex string> [{\"txid\":txid,\"vout\":n,\"scriptPubKey\":hex,\"redeemScript\":hex},...] [<privatekey1>,...] [sighashtype=\"ALL\"]\n"
             "Sign inputs for raw transaction (serialized, hex-encoded).\n"
@@ -403,7 +403,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
     bool fGivenKeys = false;
     CBasicKeyStore tempKeystore;
-    if (params.size() > 2 && params[2].type() != null_type)
+    if (params.size() > 2U && params[2].type() != null_type)
     {
         fGivenKeys = true;
         Array keys = params[2].get_array();
@@ -424,7 +424,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
         EnsureWalletIsUnlocked();
 
     // Add previous txouts given in the RPC call:
-    if (params.size() > 1 && params[1].type() != null_type)
+    if (params.size() > 1U && params[1].type() != null_type)
     {
         Array prevTxs = params[1].get_array();
         BOOST_FOREACH(Value& p, prevTxs)
@@ -486,7 +486,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
     const CKeyStore& keystore = (fGivenKeys ? tempKeystore : *pwalletMain);
 
     int nHashType = SIGHASH_ALL;
-    if (params.size() > 3 && params[3].type() != null_type)
+    if (params.size() > 3U && params[3].type() != null_type)
     {
         static map<string, int> mapSigHashValues =
             boost::assign::map_list_of
@@ -542,7 +542,7 @@ Value signrawtransaction(const Array& params, bool fHelp)
 
 Value sendrawtransaction(const Array& params, bool fHelp)
 {
-    if (fHelp || params.size() < 1 || params.size() > 1)
+    if (fHelp || params.size() < 1U || params.size() > 1U)
         throw runtime_error(
             "sendrawtransaction <hex string>\n"
             "Submits raw transaction (serialized, hex-encoded) to local node and network.");
