@@ -438,7 +438,7 @@ public:
     void BeginMessage(const char* pszCommand)
     {
         ENTER_CRITICAL_SECTION(cs_vSend);
-        assert(ssSend.size() == 0);
+        assert(ssSend.size() == 0U);
         ssSend << CMessageHeader(pszCommand, 0);
         if (fDebug)
             printf("sending: %s ", pszCommand);
@@ -463,7 +463,7 @@ public:
             return;
         }
 
-        if (ssSend.size() == 0)
+        if (ssSend.size() == 0U)
             return;
 
         // Set the size

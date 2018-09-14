@@ -538,18 +538,18 @@ public:
 
     bool IsCoinBase() const
     {
-        return (vin.size() == 1 && vin[0].prevout.IsNull() && vout.size() >= 1);
+        return (vin.size() == 1U && vin[0].prevout.IsNull() && vout.size() >= 1U);
     }
 
     bool IsCoinStake() const
     {
         // ppcoin: the coin stake transaction is marked with the first output empty
-        return (vin.size() > 0 && (!vin[0].prevout.IsNull()) && vout.size() >= 2 && vout[0].IsEmpty());
+        return (vin.size() > 0U && (!vin[0].prevout.IsNull()) && vout.size() >= 2U && vout[0].IsEmpty());
     }
 
     bool IsVotePoll() const
     {
-        if (vin.size () > 0 && !(vout[0].scriptPubKey.begin() == vout[0].scriptPubKey.end()))
+        if (vin.size () > 0U && !(vout[0].scriptPubKey.begin() == vout[0].scriptPubKey.end()))
         {
             return vout[0].scriptPubKey.IsVotePoll();
         }
@@ -958,7 +958,7 @@ public:
     // ppcoin: two types of block: proof-of-work or proof-of-stake
     bool IsProofOfStake() const
     {
-        return (vtx.size() > 1 && vtx[1].IsCoinStake());
+        return (vtx.size() > 1U && vtx[1].IsCoinStake());
     }
 
     bool IsProofOfWork() const
@@ -1535,7 +1535,7 @@ public:
             // Exponentially larger steps back
             for (int i = 0; pindex && i < nStep; i++)
                 pindex = pindex->pprev;
-            if (vHave.size() > 10)
+            if (vHave.size() > 10U)
                 nStep *= 2;
         }
         vHave.push_back((!fTestNet ? hashGenesisBlock : hashGenesisBlockTestNet));

@@ -156,7 +156,7 @@ bool CWallet::Lock()
         std::set<CStealthAddress>::iterator it;
         for (it = stealthAddresses.begin(); it != stealthAddresses.end(); ++it)
         {
-            if (it->scan_secret.size() < 32)
+            if (it->scan_secret.size() < 32U)
                 continue; // stealth address is not owned
             // -- CStealthAddress are only sorted on spend_pubkey
             CStealthAddress &sxAddr = const_cast<CStealthAddress&>(*it);
@@ -353,7 +353,7 @@ bool CWallet::EncryptWallet(const SecureString& strWalletPassphrase)
         std::set<CStealthAddress>::iterator it;
         for (it = stealthAddresses.begin(); it != stealthAddresses.end(); ++it)
         {
-            if (it->scan_secret.size() < 32)
+            if (it->scan_secret.size() < 32U)
                 continue; // stealth address is not owned
             // -- CStealthAddress is only sorted on spend_pubkey
             CStealthAddress &sxAddr = const_cast<CStealthAddress&>(*it);
@@ -960,8 +960,8 @@ int CWallet::ScanForWalletTransactions(CBlockIndex* pindexStart, bool fUpdate)
             // no need to read and scan block, if block was created before
             // our wallet birthday (as adjusted for block time variability)
             if (nTimeFirstKey && (pindex->nTime < (nTimeFirstKey - 7200))) {
+                nHeight = pindex->nHeight +1;
                 pindex = pindex->pnext;
-                nHeight = pindex->nHeight;
                 continue;
 
             }
@@ -1832,7 +1832,7 @@ bool CWallet::UnlockStealthAddresses(const CKeyingMaterial& vMasterKeyIn)
     std::set<CStealthAddress>::iterator it;
     for (it = stealthAddresses.begin(); it != stealthAddresses.end(); ++it)
     {
-        if (it->scan_secret.size() < 32)
+        if (it->scan_secret.size() < 32U)
             continue; // stealth address is not owned
         
         // -- CStealthAddress are only sorted on spend_pubkey
@@ -1844,7 +1844,7 @@ bool CWallet::UnlockStealthAddresses(const CKeyingMaterial& vMasterKeyIn)
         CSecret vchSecret;
         uint256 iv = Hash(sxAddr.spend_pubkey.begin(), sxAddr.spend_pubkey.end());
         if(!DecryptSecret(vMasterKeyIn, sxAddr.spend_secret, iv, vchSecret)
-            || vchSecret.size() != 32)
+            || vchSecret.size() != 32U)
         {
             printf("Error: Failed decrypting stealth key %s\n", sxAddr.Encoded().c_str());
             continue;
@@ -1870,7 +1870,7 @@ bool CWallet::UnlockStealthAddresses(const CKeyingMaterial& vMasterKeyIn)
     {
         CPubKey &pubKey = (*mi).second.first;
         std::vector<unsigned char> &vchCryptedSecret = (*mi).second.second;
-        if (vchCryptedSecret.size() != 0)
+        if (vchCryptedSecret.size() != 0U)
             continue;
         
         CKeyID ckid = pubKey.GetID();
@@ -2050,7 +2050,7 @@ bool CWallet::CreateStealthTransaction(CScript scriptPubKey, int64_t nValue, std
     vecSend.push_back(make_pair(scriptPubKey, nValue));
     
     CScript scriptP = CScript() << OP_RETURN << P;
-    if (narr.size() > 0)
+    if (narr.size() > 0U)
         scriptP = scriptP << OP_RETURN << narr;
     
     vecSend.push_back(make_pair(scriptP, 0));
@@ -2062,7 +2062,7 @@ bool CWallet::CreateStealthTransaction(CScript scriptPubKey, int64_t nValue, std
     bool rv = CreateTransaction(vecSend, wtxNew, reservekey, nFeeRet, nChangePos, 1, coinControl);
     
     // -- the change txn is inserted in a random pos, check here to match narr to output
-    if (rv && narr.size() > 0)
+    if (rv && narr.size() > 0U)
     {
         for (unsigned int k = 0; k < wtxNew.vout.size(); ++k)
         {
@@ -2189,7 +2189,7 @@ bool CWallet::SendStealthMoneyToDestination(CStealthAddress& sxAddress, int64_t 
             return false;
         };
         
-        if (vchNarr.size() > 48)
+        if (vchNarr.size() > 48U)
         {
             sError = "Encrypted note is too long.";
             return false;
@@ -2242,17 +2242,17 @@ bool CWallet::FindStealthTransactions(const CTransaction& tx, mapValue_t& mapNar
             continue;
         else
         if (!txout.scriptPubKey.GetOp(itTxA, opCode, vchEphemPK)
-            || vchEphemPK.size() != 33)
+            || vchEphemPK.size() != 33U)
         {
             // -- look for plaintext notes
-            if (vchEphemPK.size() > 1
+            if (vchEphemPK.size() > 1U
                 && vchEphemPK[0] == 'n'
                 && vchEphemPK[1] == 'p')
             {
                 if (txout.scriptPubKey.GetOp(itTxA, opCode, vchENarr)
                     && opCode == OP_RETURN
                     && txout.scriptPubKey.GetOp(itTxA, opCode, vchENarr)
-                    && vchENarr.size() > 0)
+                    && vchENarr.size() > 0U)
                 {
                     std::string sNarr = std::string(vchENarr.begin(), vchENarr.end());
                     
@@ -2408,7 +2408,7 @@ bool CWallet::FindStealthTransactions(const CTransaction& tx, mapValue_t& mapNar
                 if (txout.scriptPubKey.GetOp(itTxA, opCode, vchENarr)
                     && opCode == OP_RETURN
                     && txout.scriptPubKey.GetOp(itTxA, opCode, vchENarr)
-                    && vchENarr.size() > 0)
+                    && vchENarr.size() > 0U)
                 {
                     SecMsgCrypter crypter;
                     crypter.SetKey(&sShared.e[0], &vchEphemPK[0]);
@@ -2674,7 +2674,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
             int64_t nTimeWeight = GetWeight((int64_t)pcoin.first->nTime, (int64_t)txNew.nTime);
 
             // Stop adding more inputs if already too many inputs
-            if (txNew.vin.size() >= 100)
+            if (txNew.vin.size() >= 100U)
                 break;
             // Stop adding more inputs if value is already pretty significant
             if (nCredit >= (nCombineThreshold * COIN))
@@ -2726,7 +2726,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         txNew.vout[1].nValue = nCredit;
     }
 
-    if (vIndex->ballotStack.size() > 0)
+    if (vIndex->ballotStack.size() > 0U)
     {
         BLOCK_PROOF_TYPE t = IsFlashStake(txNew.nTime) ? BLOCK_PROOF_FPOS : BLOCK_PROOF_POS;
         vector<vector<unsigned char>> ballotBlock;
@@ -2736,15 +2736,15 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
 
         selectBallots(ballotBlock[0], t);
 
-        bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0);
+        bool okBallots = (getBallots(ballotBlock[0], checkStack) && ballotBlock[0].size() != 0U);
         uint8_t i = 0;
 
-        while (okBallots && i < 3 && ballotBlock[i].size() > 0 && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
+        while (okBallots && i < 3 && ballotBlock[i].size() > 0U && *ballotBlock[i].begin() == 100) // We'll allow up to 300 proof votes in a block.
         {
             i++;
             ballotBlock.resize(i+1);
             selectBallots(ballotBlock[i], t, 100 * i);
-            okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0);
+            okBallots = (getBallots(ballotBlock[i], checkStack) && ballotBlock[i].size() != 0U);
         }
 
         if (!okBallots)
@@ -2755,6 +2755,7 @@ bool CWallet::CreateCoinStake(const CKeyStore& keystore, unsigned int nBits, int
         {
             txNew.vout.resize(szVout + i+1);
             txNew.vout[szVout + i].scriptPubKey = CScript() << OP_VOTE <= ballotBlock[i];
+            txNew.vout[szVout + i].nValue = 0;
         }
     }
 
@@ -3381,7 +3382,7 @@ set< set<CTxDestination> > CWallet::GetAddressGroupings()
     {
         CWalletTx *pcoin = &walletEntry.second;
 
-        if (pcoin->vin.size() > 0 && IsMine(pcoin->vin[0]))
+        if (pcoin->vin.size() > 0U && IsMine(pcoin->vin[0]))
         {
             // group all input addresses with each other
             BOOST_FOREACH(CTxIn txin, pcoin->vin)

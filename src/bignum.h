@@ -212,7 +212,7 @@ public:
             return 0;
         std::vector<unsigned char> vch(nSize);
         BN_bn2mpi(this, &vch[0]);
-        if (vch.size() > 4)
+        if (vch.size() > 4U)
             vch[4] &= 0x7f;
         uint64_t n = 0;
         for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
@@ -282,7 +282,7 @@ public:
             return 0;
         std::vector<unsigned char> vch(nSize);
         BN_bn2mpi(this, &vch[0]);
-        if (vch.size() > 4)
+        if (vch.size() > 4U)
             vch[4] &= 0x7f;
         uint256 n = 0;
         for (unsigned int i = 0, j = vch.size()-1; i < sizeof(n) && j >= 4; i++, j--)
