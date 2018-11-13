@@ -33,7 +33,6 @@ using namespace boost;
 
 CWallet* pwalletMain;
 CWallet* pstakeDB;
-CVoteDB* pvoteDB;
 CVote* vIndex;
 CClientUIInterface uiInterface;
 bool fConfChange;
@@ -644,7 +643,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             uiInterface.ThreadSafeMessageBox(msg, _("Pinkcoin"), CClientUIInterface::OK | CClientUIInterface::ICON_EXCLAMATION | CClientUIInterface::MODAL);
         }
         if (r == CDBEnv::RECOVER_FAIL)
-            return InitError(_("wallet.dat corrupt, salvage failed"));
+            return InitError(_("stake.dat corrupt, salvage failed"));
     }
 
     if (filesystem::exists(GetDataDir() / strVoteDBFileName))
@@ -657,7 +656,7 @@ bool AppInit2(boost::thread_group& threadGroup)
             uiInterface.ThreadSafeMessageBox(msg, _("Pinkcoin"), CClientUIInterface::OK | CClientUIInterface::ICON_EXCLAMATION | CClientUIInterface::MODAL);
         }
         if (r == CDBEnv::RECOVER_FAIL)
-            return InitError(_("wallet.dat corrupt, salvage failed"));
+            return InitError(_("vote.dat corrupt, salvage failed"));
     }
 
     // ********************************************************* Step 6: network initialization

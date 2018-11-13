@@ -76,8 +76,13 @@ bool CVotePoll::isValid()
 
 bool CVotePoll::isActive()
 {
+    {
+    TRY_LOCK(cs_main, lockMain);
+
     CPollTime pbNow = GetPollTime2(pindexBest->nTime);
+
     return (Start < pbNow && pbNow < End);
+    }
 }
 
 bool CVotePoll::haveParent()
@@ -306,6 +311,7 @@ bool CVote::newPoll(CVotePoll* poll)
 
     if (ballotStack.find(poll->ID) != ballotStack.end())
     {
+        LOCK(vIndex->cs_wallet);
         // We have a random ballot that no poll exists for.
         CVoteDB(vIndex->strWalletFile).EraseBallot(ballotStack.at(poll->ID));
         ballotStack.erase(poll->ID);
@@ -459,27 +465,29 @@ bool CVote::commitPoll(const CVotePoll *poll, string& hash, const bool &fromBloc
     string fromAddress = ""; // Not yet supported.
     bool ret = false;
     bool isLocal = fromBlockchain; // So WriteVote is clearer, because the default write IS local.
-    if (this->pollCache.find(poll->ID) == this->pollCache.end() && fromBlockchain)
-        ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !isLocal);
-
-    if (ret)
-        this->pollCache.insert(make_pair(poll->ID, *poll));
-
-    if (ret && pollStack.find(poll->ID) != pollStack.end() && !pollCompare(&pollCache.at(poll->ID), &pollStack.at(poll->ID)))
     {
-        CPollID newID = poll->ID;
-        while (pollCache.find(newID) != pollCache.end())
-        {
-            newID = getNewPollID();
-        }
-        CVoteDB(this->strWalletFile).EraseVote(pollStack.at(poll->ID));
+        LOCK(vIndex->cs_wallet);
+        if (this->pollCache.find(poll->ID) == this->pollCache.end() && fromBlockchain)
+            ret = CVoteDB(this->strWalletFile).WriteVote(*poll, !isLocal);
 
-        pollStack.at(newID).ID = newID;
-        CVoteDB(this->strWalletFile).WriteVote(pollStack.at(newID));
+        if (ret)
+            this->pollCache.insert(make_pair(poll->ID, *poll));
+
+        if (ret && pollStack.find(poll->ID) != pollStack.end() && !pollCompare(&pollCache.at(poll->ID), &pollStack.at(poll->ID)))
+        {
+            CPollID newID = poll->ID;
+            while (pollCache.find(newID) != pollCache.end())
+            {
+                newID = getNewPollID();
+            }
+            CVoteDB(this->strWalletFile).EraseVote(pollStack.at(poll->ID));
+
+            pollStack.at(newID).ID = newID;
+            CVoteDB(this->strWalletFile).WriteVote(pollStack.at(newID));
+
+        }
 
     }
-
-
     if (!fromBlockchain)
         return commitToChain(poll, fromAddress, hash);
 
@@ -627,10 +635,14 @@ VDBErrors CVote::LoadVoteDB(bool& fFirstRunRet)
         return VDB_LOAD_OK;
     fFirstRunRet = false;
 
+    {
+    LOCK(vIndex->cs_wallet);
+
     VDBErrors nLoadVoteDBRet = CVoteDB(strWalletFile,"cr+").LoadVote(this);
 
     if (nLoadVoteDBRet != VDB_LOAD_OK)
         return nLoadVoteDBRet;
+    }
 
     NewThread(ThreadFlushVoteDB, &strWalletFile);
     return VDB_LOAD_OK;
@@ -840,6 +852,7 @@ void erasePoll(const uint256 &hash)
     for (PollStack::iterator it = vIndex->pollCache.begin(); it != vIndex->pollCache.end(); it++)
         if (it->second.hash == hash)
         {
+            LOCK(vIndex->cs_wallet);
             PollStack::iterator pIt = vIndex->pollStack.find(it->second.ID);
             BallotStack::iterator bIt = vIndex->ballotStack.find(it->second.ID);
 
@@ -861,17 +874,20 @@ void erasePoll(const CPollID& ID)
     PollStack::iterator pIt = vIndex->pollStack.find(ID);
     BallotStack::iterator bIt = vIndex->ballotStack.find(ID);
 
-    if (pIt != vIndex->pollStack.end()){
-        CVoteDB(vIndex->strWalletFile).EraseVote(pIt->second);
-        vIndex->pollStack.erase(pIt);
-    }
-    if (bIt != vIndex->ballotStack.end()) {
-        CVoteDB(vIndex->strWalletFile).EraseBallot(bIt->second);
-        vIndex->ballotStack.erase(bIt);
-    }
-    if (it != vIndex->pollCache.end()) {
-        CVoteDB(vIndex->strWalletFile).EraseVote(it->second);
-        vIndex->pollCache.erase(it);
+    {
+        LOCK(vIndex->cs_wallet);
+        if (pIt != vIndex->pollStack.end()){
+            CVoteDB(vIndex->strWalletFile).EraseVote(pIt->second);
+            vIndex->pollStack.erase(pIt);
+        }
+        if (bIt != vIndex->ballotStack.end()) {
+            CVoteDB(vIndex->strWalletFile).EraseBallot(bIt->second);
+            vIndex->ballotStack.erase(bIt);
+        }
+        if (it != vIndex->pollCache.end()) {
+            CVoteDB(vIndex->strWalletFile).EraseVote(it->second);
+            vIndex->pollCache.erase(it);
+        }
     }
 }
 bool isLocal()

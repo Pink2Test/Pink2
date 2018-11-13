@@ -578,7 +578,7 @@ void ThreadFlushWalletDB(void* parg)
     int64_t nLastWalletUpdate = GetTime();
     while (!fShutdown)
     {
-        MilliSleep(97);  // Lets do this on a prime to limit collisions with other db's.
+        MilliSleep(521);  // Lets do this on a prime to limit collisions with other db's.
 
         if (nLastSeen != nWalletDBUpdated)
         {

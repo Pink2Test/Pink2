@@ -210,7 +210,7 @@ void Tally(const Array& params, Object& retObj, string& helpText)
         retTally.push_back(Pair("POW", to_string((int64_t)p.nTally.at(i).POW)));
         retTally.push_back(Pair("COIN", to_string((int64_t)p.nTally.at(i).D4L)));
 
-        retObj.push_back(Pair("Option #" + to_string((int)i), p.Option[i]));
+        retObj.push_back(Pair("Option #" + to_string((int)(i + 1)), p.Option[i]));
         retObj.push_back(Pair("Tally" , retTally));
     }
 
@@ -836,19 +836,23 @@ void ListPolls(Object& retObj, uint64_t& nPage, const LIST_POLL_TYPE& type)
     retObj.push_back(Pair("PollID", "Name"));
 
     if (type == LIST_POLL_LOCAL) {
-        for (PollStack::iterator it = vIndex->pollStack.begin() ; it != vIndex->pollStack.end(); it++)
+        for (BallotStack::iterator it = vIndex->ballotStack.begin() ; it != vIndex->ballotStack.end(); it++)
         {
-            counter++;
-            thisPage = (counter / 10) + 1;
-            if (thisPage == nPage)
-            {
-                CVotePoll p = it->second;
+            CVotePoll p;
+            if (vIndex->pollStack.find(it->first) != vIndex->pollStack.end())
+                p.pollCopy(vIndex->pollStack.at(it->first));
+            else if (vIndex->pollCache.find(it->first) != vIndex->pollCache.end())
+                p.pollCopy(vIndex->pollCache.at(it->first));
 
-                if (p.ID != 0)
+            if (p.ID != 0) {
+                counter++;
+                thisPage = (counter / 10) + 1;
+                if (thisPage == nPage)
                 {
                     retObj.push_back(Pair(to_string(p.ID), p.Name));
                 }
             }
+
         }
     } else {
         for (PollStack::iterator it = vIndex->pollCache.begin() ; it != vIndex->pollCache.end(); it++)
