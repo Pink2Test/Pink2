@@ -2519,7 +2519,7 @@ bool CBlock::AcceptBlock()
     CBlockIndex* pindexPrev = (*mi).second;
     int nHeight = pindexPrev->nHeight+1;
 
-    //if(pindexPrev->nTime > nTime)
+    // if(pindexPrev->nTime > nTime + 60) // Once a block is in for 60 seconds, it's in.
     //    return DoS(10, error("AcceptBlock() : Too Late to commit block."));
 
 
