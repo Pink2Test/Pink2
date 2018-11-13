@@ -151,7 +151,7 @@ jobs:
           name: Set Up Dependencies
           command: |                 
                  cd / 
-                 wget https://46-114939775-gh.circle-artifacts.com/0/windows/x86_64-w64-mingw32_toolkit.tar.gz
+                 wget http://192.154.104.35/download/x86_64-w64-mingw32_toolkit.tar.gz
                  echo '5aa9ea2ef5c268056f0aec1d09c017f0dfe1f5345991a5cba77a74f25aaa56a7  x86_64-w64-mingw32_toolkit.tar.gz' | sha256sum -c
                  tar xvzf x86_64-w64-mingw32_toolkit.tar.gz
       - run:
