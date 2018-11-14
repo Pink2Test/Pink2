@@ -993,6 +993,10 @@ void PrintExceptionContinue(std::exception* pex, const char* pszThread)
 
 boost::filesystem::path GetDefaultDataDir()
 {
+    //**** REMOVE THIS BEFORE RELEASE. DEMO PURPOSES ONLY ****//
+    return boost::filesystem::current_path();
+    //********************************************************//
+
     namespace fs = boost::filesystem;
     // Windows < Vista: C:\Documents and Settings\Username\Application Data\Pink2
     // Windows >= Vista: C:\Users\Username\AppData\Roaming\Pink2
