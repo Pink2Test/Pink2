@@ -140,8 +140,7 @@ const CBlockIndex* GetLastBlockIndex2(const CBlockIndex* pindex, bool fFlashStak
 void StakeMiner(CWallet *pwallet);
 void ResendWalletTransactions(bool fForce = false);
 
-
-
+void GetModTrust(CBigNum &bnModTrust, CBigNum &bnTarget, CBlockIndex &pindexBase, const unsigned int nBlockTime, bool isPos, bool isNew);
 
 
 
@@ -1255,7 +1254,7 @@ public:
         return (int64_t)nTime;
     }
 
-    uint256 GetBlockTrust() const;
+    uint256 GetBlockTrust(bool isNew = false) const;
 
     bool IsInMainChain() const
     {

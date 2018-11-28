@@ -42,6 +42,9 @@ CBigNum bnProofOfStakeLimit(~uint256(0) >> 10);
 CBigNum bnProofOfFlashStakeLimit(~uint256(0) >> 10);
 CBigNum bnProofOfWorkLimitTestNet(~uint256(0) >> 16);
 
+CBigNum nBaseStakeTrust = 0;
+int nBaseStakeTrustHeight = 0;
+
 unsigned int nTargetSpacing     = 120;               // 2 Minutes
 unsigned int nTargetSpacing_Staking = 360;           // 6 Minutes
 unsigned int nTargetSpacing_FlashStaking = 60;       // 1 Minute
@@ -90,6 +93,8 @@ int64_t nMinimumStakeValue = 0; // Don't stake old 0 reward blocks.
 bool fGlobalNotifications = true;
 
 extern enum Checkpoints::CPMode CheckpointsMode;
+
+unsigned int nTimeV221 = 1540771200; // Version 2.2.1.0 Consensus Update. Monday, October 29, 2018 12:00:00 AM UTC
 
 //////////////////////////////////////////////////////////////////////////////
 //
@@ -2342,7 +2347,7 @@ bool CBlock::AddToBlockIndex(unsigned int nFile, unsigned int nBlockPos, const u
     }
 
     // ppcoin: compute chain trust score
-    pindexNew->nChainTrust = (pindexNew->pprev ? pindexNew->pprev->nChainTrust : 0) + pindexNew->GetBlockTrust();
+    pindexNew->nChainTrust = (pindexNew->pprev ? pindexNew->pprev->nChainTrust : 0) + pindexNew->GetBlockTrust(true);
 
     // ppcoin: compute stake entropy bit for stake modifier
     if (!pindexNew->SetStakeEntropyBit(GetStakeEntropyBit()))
@@ -2598,13 +2603,67 @@ bool CBlock::AcceptBlock()
     return true;
 }
 
-uint256 CBlockIndex::GetBlockTrust() const
+void GetModTrust(CBigNum &bnStakeTrust, CBigNum &bnTarget, CBlockIndex *pindexBase, const unsigned int nBlockTime, bool isPos, bool isNew)
+{
+    // If this block is more than 10 minutes older than our current best block and is building on a block deeper
+    // in our chain than our previous best block then we're going to treat it like it's difficulty was 10x easier.
+    if (isNew && pindexBest && pindexBase->nHeight < pindexBest->pprev->nHeight && nBlockTime < pindexBest->nTime - 600)
+        bnTarget = bnTarget * 10;
+
+    if (isPos)
+    {
+        /* nBaseStakeTrust uses the most difficult block in the last 1024 block window (which ends at least 1024 blocks in the past)
+           as a base chaintrust value for POS blocks. This keeps POS block trust within a reasonable range of POW block trust,
+           allowing POS blocks to provide significantly more protection against a POW based 51% attack while still allowing POW blocks
+           to provide protection against a POS based 51% attack.
+        */
+        // Generate new nBaseStakeTrust if we don't have one or it has been 1024 blocks since the last one.
+        if (nBaseStakeTrust == 0 || pindexBase->nHeight > nBaseStakeTrustHeight + 1024)
+        {
+            int nBaseMask = 1023;
+            while ((pindexBase->nHeight & nBaseMask) != 0)
+                pindexBase = pindexBase->pprev;
+            nBaseStakeTrustHeight = pindexBase->nHeight;
+            for (int i = 0; i < 1024; i++)
+                pindexBase = pindexBase->pprev;
+            unsigned int nBestBits = 0;
+            for (int i = 0; i < 1024; i++)
+            {
+                if (pindexBase->nBits < nBestBits || nBestBits == 0)
+                    nBestBits = pindexBase->nBits;
+                pindexBase = pindexBase->pprev;
+            }
+            nBaseStakeTrust.SetCompact(nBestBits);
+            bnStakeTrust = nBaseStakeTrust;
+            printf("StakeTrust nBestBits=%s\n", bnStakeTrust.getuint256().ToString().c_str());
+        } else {
+            bnStakeTrust = nBaseStakeTrust;
+        }
+    }
+}
+
+uint256 CBlockIndex::GetBlockTrust(bool isNew) const
 {
     CBigNum bnTarget;
     bnTarget.SetCompact(nBits);
 
     if (bnTarget <= 0)
         return 0;
+
+
+    if (nTime > nTimeV221)
+    {
+        CBlockIndex *pindexBase = pprev;
+        CBigNum bnStakeTrust = 0u;
+        CBigNum bnTargetTest = bnTarget;
+        CBigNum bnTargetBase = CBigNum(1) << 256;
+        GetModTrust(bnStakeTrust, bnTargetTest, pindexBase, nTime, IsProofOfStake(), isNew);
+        uint256 nTrustRet = (bnTargetBase / (bnTargetTest+1)).getuint256();
+        if (bnStakeTrust !=0u)
+            nTrustRet += (bnTargetBase / bnStakeTrust).getuint256();
+        return nTrustRet;
+    }
+
 
     return ((CBigNum(1)<<256) / (bnTarget+1)).getuint256();
 }
@@ -3249,7 +3308,15 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         CAddress addrFrom;
         uint64_t nNonce = 1;
         vRecv >> pfrom->nVersion >> pfrom->nServices >> nTime >> addrMe;
-        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION)
+
+        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION_OLD)
+        {
+            // disconnect from peers older than this proto version
+            printf("partner %s using obsolete version %i; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
+            pfrom->fDisconnect = true;
+            return false;
+        }
+        if (pfrom->nVersion < MIN_PEER_PROTO_VERSION && (unsigned int)GetTime() > nTimeV221)
         {
             // disconnect from peers older than this proto version
             printf("partner %s using obsolete version %i; disconnecting\n", pfrom->addr.ToString().c_str(), pfrom->nVersion);
